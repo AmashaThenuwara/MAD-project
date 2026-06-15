@@ -1,0 +1,15 @@
+package com.example.agriscout.ui.navigation
+
+sealed class Screen(val route: String) {
+    object Splash : Screen("splash_screen")
+    object Login : Screen("login_screen")
+    object Dashboard : Screen("dashboard_screen")
+    object FarmList : Screen("farm_list_screen")
+    object AddFarm : Screen("add_farm_screen")
+    object DiseaseReport : Screen("disease_report_screen/{farmId}") {
+        fun createRoute(farmId: Long) = "disease_report_screen/$farmId"
+    }
+    object Weather : Screen("weather_screen")
+    object Profile : Screen("profile_screen")
+    object Sync : Screen("sync_screen")
+}

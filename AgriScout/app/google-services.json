@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "278505076681",
+    "project_id": "agriscout-dabf2",
+    "storage_bucket": "agriscout-dabf2.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:278505076681:android:6b1521bbaf2ef3468f5a18",
+        "android_client_info": {
+          "package_name": "com.example.agriscout"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCrBmaickDwJimCRLgUDGCJMlZmd4p0g6Y"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

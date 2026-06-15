@@ -2,6 +2,8 @@ plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
+    alias(libs.plugins.kotlin.kapt)
+    alias(libs.plugins.google.services)
 }
 
 android {
@@ -16,6 +18,9 @@ android {
         versionName = "1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+
+        // Weather API key — replace YOUR_WEATHER_API_KEY with your actual key from openweathermap.org
+        buildConfigField("String", "WEATHER_API_KEY", "\"YOUR_WEATHER_API_KEY\"")
     }
 
     buildTypes {
@@ -36,6 +41,7 @@ android {
     }
     buildFeatures {
         compose = true
+        buildConfig = true
     }
 }
 
@@ -56,7 +62,7 @@ dependencies {
     // --- Added Room Database ---
     implementation(libs.androidx.room.runtime)
     implementation(libs.androidx.room.ktx)
-    annotationProcessor(libs.androidx.room.compiler) // For pure Room compilation parsing
+    kapt(libs.androidx.room.compiler)
 
     // --- Added Retrofit & Networking ---
     implementation(libs.retrofit.core)
@@ -68,6 +74,7 @@ dependencies {
     implementation(libs.androidx.camera.camera2)
     implementation(libs.androidx.camera.lifecycle)
     implementation(libs.androidx.camera.view)
+    implementation(libs.guava)
 
     // --- Added GPS & Location Services ---
     implementation(libs.play.services.location)
@@ -80,6 +87,9 @@ dependencies {
     implementation(libs.firebase.auth)
     implementation(libs.firebase.firestore)
     implementation(libs.firebase.storage)
+
+    // --- Accompanist Permissions ---
+    implementation(libs.google.accompanist.permissions)
 
     // --- Testing Packages ---
     testImplementation(libs.junit)

@@ -1,5 +1,6 @@
 [versions]
 agp = "8.8.0"
+googleServices = "4.4.2"
 kotlin = "2.0.21" # Highly stable paired version for modern compose compilers
 coreKtx = "1.13.1"
 junit = "4.13.2"
@@ -18,6 +19,8 @@ camerax = "1.4.0"
 playServicesLocation = "21.3.0"
 workManager = "2.9.1"
 firebaseBom = "33.6.0"
+accompanist = "0.36.0"
+guava = "33.3.1-android"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -54,6 +57,10 @@ androidx-camera-camera2 = { group = "androidx.camera", name = "camera-camera2", 
 androidx-camera-lifecycle = { group = "androidx.camera", name = "camera-lifecycle", version.ref = "camerax" }
 androidx-camera-view = { group = "androidx.camera", name = "camera-view", version.ref = "camerax" }
 
+# Guava (Needed for CameraX ListenableFuture)
+guava = { group = "com.google.guava", name = "guava", version.ref = "guava" }
+guava-listenablefuture = { group = "com.google.guava", name = "listenablefuture", version = "9999.0-empty-to-avoid-conflict-with-guava" }
+
 # Location Services
 play-services-location = { group = "com.google.android.gms", name = "play-services-location", version.ref = "playServicesLocation" }
 
@@ -66,7 +73,12 @@ firebase-auth = { group = "com.google.firebase", name = "firebase-auth-ktx" }
 firebase-firestore = { group = "com.google.firebase", name = "firebase-firestore-ktx" }
 firebase-storage = { group = "com.google.firebase", name = "firebase-storage-ktx" }
 
+# Accompanist Permissions
+google-accompanist-permissions = { group = "com.google.accompanist", name = "accompanist-permissions", version.ref = "accompanist" }
+
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
 kotlin-android = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
 kotlin-compose = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
+kotlin-kapt = { id = "org.jetbrains.kotlin.kapt", version.ref = "kotlin" }
+google-services = { id = "com.google.gms.google-services", version.ref = "googleServices" }
