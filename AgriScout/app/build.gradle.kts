@@ -94,6 +94,9 @@ dependencies {
     // --- Login Page ---
     implementation("androidx.compose.material:material-icons-extended:1.6.8")
 
+    // --- Coil for Image Loading ---
+    implementation(libs.coil.compose)
+
     // --- Testing Packages ---
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)

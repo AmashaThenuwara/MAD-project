@@ -10,11 +10,7 @@ import com.example.agriscout.data.repository.DiseaseReportRepository
 import com.example.agriscout.data.repository.FarmRepository
 import com.example.agriscout.data.repository.WeatherRepository
 import com.example.agriscout.data.repository.WeatherResult
-import com.example.agriscout.data.network.WeatherResponse
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.SharingStarted
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 
 class AgriViewModel(application: Application) : AndroidViewModel(application) {
@@ -38,38 +34,41 @@ class AgriViewModel(application: Application) : AndroidViewModel(application) {
     val totalReportCount: StateFlow<Int> = reportRepo.totalReportCount
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
 
-    val pendingSyncCount: StateFlow<Int> = reportRepo.pendingSyncCount
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
+    // --- Combined Global Sync Stats ---
+    val syncedCount: StateFlow<Int> = combine(
+        farmRepo.allFarms.map { it.count { f -> f.isSynced } },
+        reportRepo.syncedCount
+    ) { f, r -> f + r }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
 
-    val syncedCount: StateFlow<Int> = reportRepo.syncedCount
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
+    val pendingSyncCount: StateFlow<Int> = combine(
+        farmRepo.allFarms.map { it.count { f -> !f.isSynced } },
+        reportRepo.pendingSyncCount
+    ) { f, r -> f + r }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
+
+    val hasUnsyncedData: StateFlow<Boolean> = pendingSyncCount.map { it > 0 }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
 
     // --- Weather state ---
     private val _weatherState = MutableStateFlow<WeatherResult>(WeatherResult.Loading)
     val weatherState: StateFlow<WeatherResult> = _weatherState
 
-    // --- Farm operations ---
-    fun insertFarm(name: String, farmer: String, location: String, cropType: String, stage: String) {
+    // --- Correct Operations for Screens ---
+    
+    fun insertFarm(name: String, farmer: String, location: String, crop: String, stage: String) {
         viewModelScope.launch {
             farmRepo.insertFarm(
                 FarmEntity(
                     farmName = name,
                     farmerName = farmer,
                     locationName = location,
-                    cropType = cropType,
+                    cropType = crop,
                     growthStage = stage
                 )
             )
         }
     }
 
-    fun deleteFarm(farm: FarmEntity) {
-        viewModelScope.launch { farmRepo.deleteFarm(farm) }
-    }
-
-    // --- Disease Report operations ---
-    fun insertReport(farmId: Long, diseaseName: String, notes: String,
-                     imagePath: String, latitude: Double, longitude: Double) {
+    fun insertReport(farmId: Long, diseaseName: String, notes: String, imagePath: String, lat: Double, lon: Double) {
         viewModelScope.launch {
             reportRepo.insertReport(
                 DiseaseReportEntity(
@@ -77,24 +76,21 @@ class AgriViewModel(application: Application) : AndroidViewModel(application) {
                     diseaseName = diseaseName,
                     notes = notes,
                     imagePath = imagePath,
-                    latitude = latitude,
-                    longitude = longitude
+                    latitude = lat,
+                    longitude = lon
                 )
             )
         }
     }
 
-    fun deleteReport(report: DiseaseReportEntity) {
-        viewModelScope.launch { reportRepo.deleteReport(report) }
-    }
+    // Helper for Sync
+    fun updateFarm(farm: FarmEntity) = viewModelScope.launch { farmRepo.insertFarm(farm) }
+    fun updateReport(report: DiseaseReportEntity) = viewModelScope.launch { reportRepo.insertReport(report) }
 
-    fun getReportsForFarm(farmId: Long) = reportRepo.getReportsForFarm(farmId)
-
-    // --- Weather operations ---
-    fun fetchWeather(latitude: Double, longitude: Double) {
+    fun fetchWeather(lat: Double, lon: Double) {
         viewModelScope.launch {
             _weatherState.value = WeatherResult.Loading
-            _weatherState.value = weatherRepo.getWeather(latitude, longitude)
+            _weatherState.value = weatherRepo.getWeather(lat, lon)
         }
     }
 }

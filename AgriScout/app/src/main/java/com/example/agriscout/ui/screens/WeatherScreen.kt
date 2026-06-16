@@ -1,125 +1,157 @@
+// WeatherScreen.kt
+// Fetches and displays real-time weather at the device's current GPS location.
+// Uses FusedLocationProviderClient to get coordinates, then calls WeatherRepository
+// via AgriViewModel.fetchWeather(lat, lon).
+
 package com.example.agriscout.ui.screens
 
 import android.Manifest
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.platform.LocalContext
 import com.example.agriscout.data.repository.WeatherResult
 import com.example.agriscout.ui.viewmodel.AgriViewModel
 import com.google.accompanist.permissions.ExperimentalPermissionsApi
 import com.google.accompanist.permissions.isGranted
 import com.google.accompanist.permissions.rememberPermissionState
+import com.google.android.gms.location.LocationServices
+import com.google.android.gms.location.Priority
 
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalPermissionsApi::class)
+@OptIn(ExperimentalPermissionsApi::class, ExperimentalMaterial3Api::class)
 @Composable
 fun WeatherScreen(
     viewModel: AgriViewModel,
     onNavigateBack: () -> Unit
 ) {
     val context = LocalContext.current
-    val weatherState by viewModel.weatherState.collectAsState()
     val locationPermission = rememberPermissionState(Manifest.permission.ACCESS_FINE_LOCATION)
 
-    LaunchedEffect(locationPermission.status.isGranted) {
-        if (locationPermission.status.isGranted) {
-            getLocation(context) { lat, lon ->
-                viewModel.fetchWeather(lat, lon)
-            }
+    // Collect weather state from ViewModel
+    val weatherState by viewModel.weatherState.collectAsState()
+
+    // Fetch weather using device GPS
+    fun fetchWeatherForCurrentLocation() {
+        if (!locationPermission.status.isGranted) {
+            locationPermission.launchPermissionRequest()
+            return
         }
+        val fusedLocationClient = LocationServices.getFusedLocationProviderClient(context)
+        try {
+            fusedLocationClient.getCurrentLocation(Priority.PRIORITY_HIGH_ACCURACY, null)
+                .addOnSuccessListener { location ->
+                    if (location != null) {
+                        viewModel.fetchWeather(location.latitude, location.longitude)
+                    }
+                }
+        } catch (e: SecurityException) {
+            // Permission denied at runtime
+        }
+    }
+
+    // Auto-fetch when screen opens
+    LaunchedEffect(Unit) {
+        fetchWeatherForCurrentLocation()
     }
 
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Weather Conditions", fontWeight = FontWeight.Bold) },
+                title = { Text("Weather at Farm Location", fontWeight = FontWeight.Bold) },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
                         Icon(Icons.Default.ArrowBack, contentDescription = "Back")
                     }
+                },
+                actions = {
+                    // Refresh button to re-fetch weather
+                    IconButton(onClick = { fetchWeatherForCurrentLocation() }) {
+                        Icon(Icons.Default.Refresh, contentDescription = "Refresh")
+                    }
                 }
             )
         }
-    ) { padding ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding)
-                .padding(24.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
+    ) { innerPadding ->
+        Box(
+            modifier = Modifier.fillMaxSize().padding(innerPadding).padding(24.dp),
+            contentAlignment = Alignment.Center
         ) {
-            if (!locationPermission.status.isGranted) {
-                Text("Location permission needed to fetch weather")
-                Spacer(Modifier.height(12.dp))
-                Button(onClick = { locationPermission.launchPermissionRequest() }) {
-                    Text("Grant Permission")
-                }
-            } else {
-                when (val state = weatherState) {
-                    is WeatherResult.Loading -> {
+            when (val state = weatherState) {
+                is WeatherResult.Loading -> {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         CircularProgressIndicator()
-                        Spacer(Modifier.height(16.dp))
-                        Text("Fetching weather data...")
+                        Spacer(modifier = Modifier.height(12.dp))
+                        Text("Fetching weather...", color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
-                    is WeatherResult.Error -> {
-                        Text("⚠️ ${state.message}",
-                            color = MaterialTheme.colorScheme.error)
-                        Spacer(Modifier.height(16.dp))
-                        Button(onClick = {
-                            getLocation(context) { lat, lon ->
-                                viewModel.fetchWeather(lat, lon)
-                            }
-                        }) { Text("Retry") }
+                }
+
+                is WeatherResult.Error -> {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text("Failed to load weather", fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(state.message, color = MaterialTheme.colorScheme.error, fontSize = 13.sp)
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Button(onClick = { fetchWeatherForCurrentLocation() }) {
+                            Text("Retry")
+                        }
                     }
-                    is WeatherResult.Success -> {
-                        val data = state.data
+                }
+
+                is WeatherResult.Success -> {
+                    val data = state.data
+                    Column(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalArrangement = Arrangement.spacedBy(16.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        // Location name
                         Text(
-                            text = "📍 ${data.cityName}, ${data.sys.country}",
-                            fontSize = 20.sp,
+                            text = "${data.cityName}, ${data.sys.country}",
+                            fontSize = 22.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+
+                        // Temperature — converted from Kelvin to Celsius in WeatherModels.kt
+                        Text(
+                            text = "${"%.1f".format(data.main.tempCelsius)}°C",
+                            fontSize = 48.sp,
                             fontWeight = FontWeight.Bold
                         )
-                        Spacer(Modifier.height(8.dp))
+
                         Text(
-                            text = data.weather.firstOrNull()?.description?.replaceFirstChar
-                            { it.uppercase() } ?: "",
+                            text = "Feels like ${"%.1f".format(data.main.feelsLikeCelsius)}°C",
                             fontSize = 16.sp,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
-                        Spacer(Modifier.height(32.dp))
 
+                        // Weather description
+                        if (data.weather.isNotEmpty()) {
+                            Text(
+                                text = data.weather[0].description.replaceFirstChar { it.uppercase() },
+                                fontSize = 18.sp
+                            )
+                        }
+
+                        Divider(modifier = Modifier.padding(vertical = 8.dp))
+
+                        // Detail cards
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.SpaceEvenly
                         ) {
-                            WeatherInfoCard("🌡️ Temperature",
-                                "%.1f°C".format(data.main.tempCelsius))
-                            WeatherInfoCard("💧 Humidity",
-                                "${data.main.humidity}%")
+                            WeatherDetailCard(label = "Humidity", value = "${data.main.humidity}%")
+                            WeatherDetailCard(label = "Pressure", value = "${data.main.pressure} hPa")
+                            WeatherDetailCard(label = "Wind", value = "${"%.1f".format(data.wind.speed)} m/s")
                         }
-                        Spacer(Modifier.height(16.dp))
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceEvenly
-                        ) {
-                            WeatherInfoCard("🌬️ Wind Speed",
-                                "${data.wind.speed} m/s")
-                            WeatherInfoCard("🌡️ Feels Like",
-                                "%.1f°C".format(data.main.feelsLikeCelsius))
-                        }
-                        Spacer(Modifier.height(24.dp))
-                        Button(onClick = {
-                            getLocation(context) { lat, lon ->
-                                viewModel.fetchWeather(lat, lon)
-                            }
-                        }) { Text("Refresh") }
                     }
                 }
             }
@@ -127,18 +159,18 @@ fun WeatherScreen(
     }
 }
 
+// Reusable card for one weather stat
 @Composable
-fun WeatherInfoCard(label: String, value: String) {
-    Card(elevation = CardDefaults.cardElevation(2.dp)) {
+fun WeatherDetailCard(label: String, value: String) {
+    Card(
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+    ) {
         Column(
             modifier = Modifier.padding(16.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Text(value, fontSize = 22.sp, fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.primary)
-            Spacer(Modifier.height(4.dp))
-            Text(label, fontSize = 12.sp,
-                color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(text = value, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+            Text(text = label, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }
 }

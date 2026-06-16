@@ -1,3 +1,11 @@
+// MainActivity.kt
+// Entry point of AgriScout.
+// Responsibilities:
+//   1. Checks if user is already logged in (Firebase) — skips login if so
+//   2. Sets up NavHost with ALL screens (login, dashboard, farm list, add farm,
+//      disease report, reports list, weather, sync, profile)
+//   3. Schedules SyncWorker via WorkManager on app start
+
 package com.example.agriscout
 
 import android.app.Application
@@ -16,15 +24,22 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import androidx.work.*
 import com.example.agriscout.data.firebase.FirebaseAuthManager
+import com.example.agriscout.data.sync.SyncWorker
 import com.example.agriscout.ui.navigation.Screen
 import com.example.agriscout.ui.screens.*
 import com.example.agriscout.ui.theme.AgriScoutTheme
 import com.example.agriscout.ui.viewmodel.AgriViewModel
+import java.util.concurrent.TimeUnit
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        // Schedule background sync worker — runs every 15 minutes when internet is available
+        scheduleSyncWorker()
+
         setContent {
             AgriScoutTheme {
                 Surface(
@@ -36,42 +51,63 @@ class MainActivity : ComponentActivity() {
             }
         }
     }
+
+    // WorkManager: schedules SyncWorker to run periodically with network constraint.
+    // KEEP_EXISTING means if already scheduled, don't reschedule on every app open.
+    private fun scheduleSyncWorker() {
+        val constraints = Constraints.Builder()
+            .setRequiredNetworkType(NetworkType.CONNECTED) // only run when online
+            .build()
+
+        val syncRequest = PeriodicWorkRequestBuilder<SyncWorker>(
+            15, TimeUnit.MINUTES   // minimum interval WorkManager allows
+        )
+            .setConstraints(constraints)
+            .build()
+
+        WorkManager.getInstance(this).enqueueUniquePeriodicWork(
+            "agriscout_sync",              // unique name — prevents duplicate workers
+            ExistingPeriodicWorkPolicy.KEEP,
+            syncRequest
+        )
+    }
 }
 
 @Composable
 fun AppNavigation() {
     val navController = rememberNavController()
     val context = LocalContext.current
+
+    // Shared ViewModel across all screens
     val agriViewModel: AgriViewModel = viewModel(
         factory = androidx.lifecycle.ViewModelProvider.AndroidViewModelFactory
             .getInstance(context.applicationContext as Application)
     )
 
+    // Check Firebase login state to decide the start destination
+    // NOTE: Screen.Splash exists in Screen.kt but isn't wired here yet —
+    // share SplashScreen.kt if you want it to own this decision instead.
     val authManager = FirebaseAuthManager()
-    // If already logged in, skip login screen
-    val startDestination = if (authManager.isLoggedIn)
-        Screen.Dashboard.route else Screen.Splash.route
+    val startScreen = if (authManager.isLoggedIn) Screen.Dashboard.route else Screen.Login.route
 
-    NavHost(navController = navController, startDestination = startDestination) {
+    NavHost(
+        navController = navController,
+        startDestination = startScreen   // skip login if already authenticated
+    ) {
 
-        composable(Screen.Splash.route) {
-            SplashScreen(onNavigateNext = {
-                val dest = if (authManager.isLoggedIn)
-                    Screen.Dashboard.route else Screen.Login.route
-                navController.navigate(dest) {
-                    popUpTo(Screen.Splash.route) { inclusive = true }
-                }
-            })
-        }
-
+        // Login / Register screen
         composable(Screen.Login.route) {
-            LoginScreen(onLoginSuccess = {
-                navController.navigate(Screen.Dashboard.route) {
-                    popUpTo(Screen.Login.route) { inclusive = true }
+            LoginScreen(
+                onLoginSuccess = {
+                    // Replace login screen with Dashboard (can't go back to login)
+                    navController.navigate(Screen.Dashboard.route) {
+                        popUpTo(Screen.Login.route) { inclusive = true }
+                    }
                 }
-            })
+            )
         }
 
+        // Dashboard — main hub screen after login
         composable(Screen.Dashboard.route) {
             DashboardScreen(
                 viewModel = agriViewModel,
@@ -82,22 +118,25 @@ fun AppNavigation() {
                 onNavigateToProfile = { navController.navigate(Screen.Profile.route) },
                 onLogout = {
                     navController.navigate(Screen.Login.route) {
-                        popUpTo(Screen.Dashboard.route) { inclusive = true }
+                        popUpTo(0) { inclusive = true } // clear entire back stack on logout
                     }
                 }
             )
         }
 
+        // Farm list
         composable(Screen.FarmList.route) {
             FarmListScreen(
                 viewModel = agriViewModel,
                 onNavigateToAddFarm = { navController.navigate(Screen.AddFarm.route) },
                 onNavigateToReport = { farmId ->
                     navController.navigate(Screen.DiseaseReport.createRoute(farmId))
-                }
+                },
+                onNavigateToWeather = { navController.navigate(Screen.Weather.route) }
             )
         }
 
+        // Add farm form
         composable(Screen.AddFarm.route) {
             AddFarmScreen(
                 viewModel = agriViewModel,
@@ -105,6 +144,7 @@ fun AppNavigation() {
             )
         }
 
+        // Disease report screen — receives farmId as nav argument
         composable(
             route = Screen.DiseaseReport.route,
             arguments = listOf(navArgument("farmId") { type = NavType.LongType })
@@ -117,6 +157,7 @@ fun AppNavigation() {
             )
         }
 
+        // Reports list — all disease reports across every farm
         composable(Screen.ReportsList.route) {
             ReportsListScreen(
                 viewModel = agriViewModel,
@@ -124,6 +165,7 @@ fun AppNavigation() {
             )
         }
 
+        // Weather screen
         composable(Screen.Weather.route) {
             WeatherScreen(
                 viewModel = agriViewModel,
@@ -131,6 +173,7 @@ fun AppNavigation() {
             )
         }
 
+        // Sync screen
         composable(Screen.Sync.route) {
             SyncScreen(
                 viewModel = agriViewModel,
@@ -138,13 +181,14 @@ fun AppNavigation() {
             )
         }
 
+        // Profile screen
         composable(Screen.Profile.route) {
             ProfileScreen(
                 viewModel = agriViewModel,
                 onNavigateBack = { navController.popBackStack() },
                 onLogout = {
                     navController.navigate(Screen.Login.route) {
-                        popUpTo(Screen.Dashboard.route) { inclusive = true }
+                        popUpTo(0) { inclusive = true }
                     }
                 }
             )

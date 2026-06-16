@@ -1,3 +1,7 @@
+// FarmListScreen.kt
+// Main screen — shows all tracked farms, with quick access to Add Farm,
+// Disease Report (per farm), and the global Weather screen.
+
 package com.example.agriscout.ui.screens
 
 import androidx.compose.foundation.layout.*
@@ -5,6 +9,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Cloud
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
@@ -23,7 +28,8 @@ import com.example.agriscout.ui.viewmodel.AgriViewModel
 fun FarmListScreen(
     viewModel: AgriViewModel,
     onNavigateToAddFarm: () -> Unit,
-    onNavigateToReport: (Long) -> Unit
+    onNavigateToReport: (Long) -> Unit,
+    onNavigateToWeather: () -> Unit   // NEW — navigates to the global WeatherScreen
 ) {
     // Collect the dynamic Room database list state flow
     val farmsList by viewModel.farmsList.collectAsState()
@@ -34,7 +40,16 @@ fun FarmListScreen(
                 title = { Text("Agri Scout - Active Farms", fontWeight = FontWeight.Bold) },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.primaryContainer
-                )
+                ),
+                actions = {
+                    // Weather button — top-right corner of the app bar
+                    IconButton(onClick = onNavigateToWeather) {
+                        Icon(
+                            imageVector = Icons.Default.Cloud,
+                            contentDescription = "Weather"
+                        )
+                    }
+                }
             )
         },
         floatingActionButton = {

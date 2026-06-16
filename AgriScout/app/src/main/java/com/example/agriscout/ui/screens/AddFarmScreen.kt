@@ -94,10 +94,10 @@ fun AddFarmScreen(
                             name = farmName,
                             farmer = farmerName,
                             location = locationName,
-                            cropType = cropType,
+                            crop = cropType,
                             stage = growthStage
                         )
-                        onNavigateBack() // Pop back to main dashboard list view
+                        onNavigateBack() // Pop back
                     }
                 },
                 modifier = Modifier
@@ -105,7 +105,7 @@ fun AddFarmScreen(
                     .height(50.dp),
                 enabled = farmName.isNotBlank() && farmerName.isNotBlank()
             ) {
-                Text("Save to Local Device Database", fontSize = 16.sp)
+                Text("Save Farm", fontSize = 16.sp)
             }
         }
     }

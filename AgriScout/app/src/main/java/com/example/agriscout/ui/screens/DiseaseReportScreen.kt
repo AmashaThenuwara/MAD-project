@@ -17,6 +17,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.text.font.FontWeight
@@ -24,6 +25,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
+import coil.compose.AsyncImage
 import com.example.agriscout.ui.viewmodel.AgriViewModel
 import com.google.accompanist.permissions.ExperimentalPermissionsApi
 import com.google.accompanist.permissions.isGranted
@@ -89,15 +91,26 @@ fun DiseaseReportScreen(
                 .padding(innerPadding)
                 .verticalScroll(rememberScrollState())
         ) {
-            // Camera preview
+            // Camera preview or captured image
             if (permissionsState.permissions[0].status.isGranted) {
                 Box(modifier = Modifier
                     .fillMaxWidth()
                     .height(280.dp)) {
-                    CameraPreviewWithCapture(
-                        modifier = Modifier.fillMaxSize(),
-                        onImageCaptureReady = { imageCaptureUseCase = it }
-                    )
+                    
+                    if (imagePath.isEmpty()) {
+                        CameraPreviewWithCapture(
+                            modifier = Modifier.fillMaxSize(),
+                            onImageCaptureReady = { imageCaptureUseCase = it }
+                        )
+                    } else {
+                        AsyncImage(
+                            model = File(imagePath),
+                            contentDescription = "Captured Photo",
+                            modifier = Modifier.fillMaxSize(),
+                            contentScale = ContentScale.Crop
+                        )
+                    }
+
                     // Captured indicator
                     if (imagePath.isNotEmpty()) {
                         Surface(
@@ -190,14 +203,18 @@ fun DiseaseReportScreen(
                 // Capture photo button
                 Button(
                     onClick = {
-                        capturePhoto(context, imageCaptureUseCase) { path ->
-                            imagePath = path
+                        if (imagePath.isEmpty()) {
+                            capturePhoto(context, imageCaptureUseCase) { path ->
+                                imagePath = path
+                            }
+                        } else {
+                            imagePath = "" // Allow retake
                         }
                     },
                     modifier = Modifier.fillMaxWidth(),
                     enabled = permissionsState.permissions[0].status.isGranted
                 ) {
-                    Text(if (imagePath.isEmpty()) "📷 Capture Photo" else "📷 Retake Photo")
+                    Text(if (imagePath.isEmpty()) "📷 Capture Photo" else "🔄 Retake Photo")
                 }
 
                 Spacer(modifier = Modifier.height(8.dp))
@@ -213,8 +230,8 @@ fun DiseaseReportScreen(
                             diseaseName = diseaseName,
                             notes = notes,
                             imagePath = imagePath,
-                            latitude = latitude,
-                            longitude = longitude
+                            lat = latitude,
+                            lon = longitude
                         )
                         isSaved = true
                         onNavigateBack()
