@@ -19,8 +19,8 @@ android {
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
-        // Weather API key — replace YOUR_WEATHER_API_KEY with your actual key from openweathermap.org
-        buildConfigField("String", "WEATHER_API_KEY", "\"YOUR_WEATHER_API_KEY\"")
+        // Weather API key
+        buildConfigField("String", "WEATHER_API_KEY", "\"0a9ca74f4f43e2464f6ff1493d322026\"")
     }
 
     buildTypes {
@@ -90,6 +90,9 @@ dependencies {
 
     // --- Accompanist Permissions ---
     implementation(libs.google.accompanist.permissions)
+
+    // --- Login Page ---
+    implementation("androidx.compose.material:material-icons-extended:1.6.8")
 
     // --- Testing Packages ---
     testImplementation(libs.junit)

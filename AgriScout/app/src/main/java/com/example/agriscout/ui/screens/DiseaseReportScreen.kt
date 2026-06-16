@@ -1,13 +1,15 @@
 package com.example.agriscout.ui.screens
 
 import android.Manifest
+import android.content.Context
 import android.util.Log
 import android.view.ViewGroup
-import androidx.camera.core.CameraSelector
-import androidx.camera.core.Preview
+import androidx.camera.core.*
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material3.*
@@ -17,26 +19,62 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLifecycleOwner
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
+import com.example.agriscout.ui.viewmodel.AgriViewModel
 import com.google.accompanist.permissions.ExperimentalPermissionsApi
 import com.google.accompanist.permissions.isGranted
-import com.google.accompanist.permissions.rememberPermissionState
+import com.google.accompanist.permissions.rememberMultiplePermissionsState
+import com.google.android.gms.location.LocationServices
 import com.google.common.util.concurrent.ListenableFuture
+import java.io.File
+import java.text.SimpleDateFormat
+import java.util.*
 
 @OptIn(ExperimentalPermissionsApi::class, ExperimentalMaterial3Api::class)
 @Composable
 fun DiseaseReportScreen(
     farmId: Long,
+    viewModel: AgriViewModel,
     onNavigateBack: () -> Unit
 ) {
-    val cameraPermissionState = rememberPermissionState(Manifest.permission.CAMERA)
+    val context = LocalContext.current
+    val snackbarHostState = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
+
+    // Form state
+    var diseaseName by remember { mutableStateOf("") }
+    var notes by remember { mutableStateOf("") }
+    var imagePath by remember { mutableStateOf("") }
+    var latitude by remember { mutableStateOf(0.0) }
+    var longitude by remember { mutableStateOf(0.0) }
+    var locationText by remember { mutableStateOf("Not captured yet") }
+    var isSaved by remember { mutableStateOf(false) }
+
+    // Camera
+    var imageCaptureUseCase by remember { mutableStateOf<ImageCapture?>(null) }
+
+    val permissionsState = rememberMultiplePermissionsState(
+        permissions = listOf(
+            Manifest.permission.CAMERA,
+            Manifest.permission.ACCESS_FINE_LOCATION
+        )
+    )
+
+    LaunchedEffect(Unit) {
+        if (!permissionsState.allPermissionsGranted) {
+            permissionsState.launchMultiplePermissionRequest()
+        }
+    }
 
     Scaffold(
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
-                title = { Text("Log Disease Report - Farm #$farmId") },
+                title = { Text("Disease Report — Farm #$farmId") },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
                         Icon(Icons.Default.ArrowBack, contentDescription = "Back")
@@ -49,39 +87,147 @@ fun DiseaseReportScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
+                .verticalScroll(rememberScrollState())
         ) {
-            if (cameraPermissionState.status.isGranted) {
-                CameraPreview(modifier = Modifier.weight(1f))
+            // Camera preview
+            if (permissionsState.permissions[0].status.isGranted) {
+                Box(modifier = Modifier
+                    .fillMaxWidth()
+                    .height(280.dp)) {
+                    CameraPreviewWithCapture(
+                        modifier = Modifier.fillMaxSize(),
+                        onImageCaptureReady = { imageCaptureUseCase = it }
+                    )
+                    // Captured indicator
+                    if (imagePath.isNotEmpty()) {
+                        Surface(
+                            modifier = Modifier
+                                .align(Alignment.TopEnd)
+                                .padding(8.dp),
+                            color = Color(0xFF2E7D32),
+                            shape = MaterialTheme.shapes.small
+                        ) {
+                            Text(
+                                "✓ Photo captured",
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                                color = Color.White,
+                                fontSize = 12.sp
+                            )
+                        }
+                    }
+                }
             } else {
                 Box(
-                    modifier = Modifier.fillMaxSize(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(200.dp),
                     contentAlignment = Alignment.Center
                 ) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text("Camera permission is required to log reports.")
-                        Spacer(modifier = Modifier.height(16.dp))
-                        Button(onClick = { cameraPermissionState.launchPermissionRequest() }) {
-                            Text("Grant Permission")
+                        Text("Camera & location permissions required")
+                        Spacer(Modifier.height(8.dp))
+                        Button(onClick = { permissionsState.launchMultiplePermissionRequest() }) {
+                            Text("Grant Permissions")
                         }
                     }
                 }
             }
 
-            // UI Controls
-            Surface(
-                modifier = Modifier.fillMaxWidth(),
-                color = MaterialTheme.colorScheme.surfaceVariant
+            // Form fields
+            Column(
+                modifier = Modifier.padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                Row(
-                    modifier = Modifier.padding(24.dp),
-                    horizontalArrangement = Arrangement.Center
+                Text("Report Details", fontWeight = FontWeight.Bold, fontSize = 18.sp)
+
+                OutlinedTextField(
+                    value = diseaseName,
+                    onValueChange = { diseaseName = it },
+                    label = { Text("Disease / Issue Name") },
+                    placeholder = { Text("e.g. Leaf Blight, Fungal Infection") },
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                OutlinedTextField(
+                    value = notes,
+                    onValueChange = { notes = it },
+                    label = { Text("Field Notes") },
+                    placeholder = { Text("Describe symptoms, affected area, severity...") },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(120.dp),
+                    maxLines = 5
+                )
+
+                // GPS section
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceVariant
+                    )
                 ) {
-                    Button(
-                        onClick = { /* TODO: Implement actual capture and GPS tagging */ },
-                        modifier = Modifier.height(56.dp)
-                    ) {
-                        Text("Capture & Tag Location")
+                    Column(modifier = Modifier.padding(12.dp)) {
+                        Text("GPS Location", fontWeight = FontWeight.SemiBold)
+                        Spacer(Modifier.height(4.dp))
+                        Text(locationText, fontSize = 13.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Spacer(Modifier.height(8.dp))
+                        Button(
+                            onClick = {
+                                getLocation(context) { lat, lon ->
+                                    latitude = lat
+                                    longitude = lon
+                                    locationText = "Lat: %.5f, Lon: %.5f".format(lat, lon)
+                                }
+                            },
+                            enabled = permissionsState.permissions[1].status.isGranted
+                        ) {
+                            Text("Get GPS Location")
+                        }
                     }
+                }
+
+                // Capture photo button
+                Button(
+                    onClick = {
+                        capturePhoto(context, imageCaptureUseCase) { path ->
+                            imagePath = path
+                        }
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                    enabled = permissionsState.permissions[0].status.isGranted
+                ) {
+                    Text(if (imagePath.isEmpty()) "📷 Capture Photo" else "📷 Retake Photo")
+                }
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                // Save button
+                Button(
+                    onClick = {
+                        if (diseaseName.isBlank()) {
+                            return@Button
+                        }
+                        viewModel.insertReport(
+                            farmId = farmId,
+                            diseaseName = diseaseName,
+                            notes = notes,
+                            imagePath = imagePath,
+                            latitude = latitude,
+                            longitude = longitude
+                        )
+                        isSaved = true
+                        onNavigateBack()
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(50.dp),
+                    enabled = diseaseName.isNotBlank() && !isSaved,
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.primary
+                    )
+                ) {
+                    Text("Save Report", fontSize = 16.sp)
                 }
             }
         }
@@ -89,7 +235,10 @@ fun DiseaseReportScreen(
 }
 
 @Composable
-fun CameraPreview(modifier: Modifier = Modifier) {
+fun CameraPreviewWithCapture(
+    modifier: Modifier = Modifier,
+    onImageCaptureReady: (ImageCapture) -> Unit
+) {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
     val cameraProviderFuture: ListenableFuture<ProcessCameraProvider> = remember(context) {
@@ -107,21 +256,27 @@ fun CameraPreview(modifier: Modifier = Modifier) {
 
             cameraProviderFuture.addListener({
                 val cameraProvider = cameraProviderFuture.get()
+
                 val preview = Preview.Builder().build().also {
                     it.setSurfaceProvider(previewView.surfaceProvider)
                 }
 
-                val cameraSelector = CameraSelector.DEFAULT_BACK_CAMERA
+                val imageCapture = ImageCapture.Builder()
+                    .setCaptureMode(ImageCapture.CAPTURE_MODE_MINIMIZE_LATENCY)
+                    .build()
+
+                onImageCaptureReady(imageCapture)
 
                 try {
                     cameraProvider.unbindAll()
                     cameraProvider.bindToLifecycle(
                         lifecycleOwner,
-                        cameraSelector,
-                        preview
+                        CameraSelector.DEFAULT_BACK_CAMERA,
+                        preview,
+                        imageCapture
                     )
-                } catch (exc: Exception) {
-                    Log.e("CameraPreview", "Use case binding failed", exc)
+                } catch (e: Exception) {
+                    Log.e("CameraPreview", "Binding failed", e)
                 }
             }, ContextCompat.getMainExecutor(ctx))
 
@@ -129,4 +284,42 @@ fun CameraPreview(modifier: Modifier = Modifier) {
         },
         modifier = modifier
     )
+}
+
+fun capturePhoto(context: Context, imageCapture: ImageCapture?, onCaptured: (String) -> Unit) {
+    imageCapture ?: return
+
+    val photoFile = File(
+        context.filesDir,
+        SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(Date()) + ".jpg"
+    )
+
+    val outputOptions = ImageCapture.OutputFileOptions.Builder(photoFile).build()
+
+    imageCapture.takePicture(
+        outputOptions,
+        ContextCompat.getMainExecutor(context),
+        object : ImageCapture.OnImageSavedCallback {
+            override fun onImageSaved(output: ImageCapture.OutputFileResults) {
+                onCaptured(photoFile.absolutePath)
+                Log.d("Camera", "Photo saved: ${photoFile.absolutePath}")
+            }
+            override fun onError(exception: ImageCaptureException) {
+                Log.e("Camera", "Capture failed: ${exception.message}")
+            }
+        }
+    )
+}
+
+fun getLocation(context: Context, onResult: (Double, Double) -> Unit) {
+    try {
+        val fusedClient = LocationServices.getFusedLocationProviderClient(context)
+        fusedClient.lastLocation.addOnSuccessListener { location ->
+            if (location != null) {
+                onResult(location.latitude, location.longitude)
+            }
+        }
+    } catch (e: SecurityException) {
+        Log.e("GPS", "Location permission not granted: ${e.message}")
+    }
 }
