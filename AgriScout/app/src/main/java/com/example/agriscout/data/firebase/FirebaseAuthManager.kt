@@ -12,6 +12,7 @@ class FirebaseAuthManager {
 
     suspend fun login(email: String, password: String): Result<FirebaseUser> {
         return try {
+            // Sign in with email and password
             val result = auth.signInWithEmailAndPassword(email, password).await()
             Result.success(result.user!!)
         } catch (e: Exception) {
@@ -21,6 +22,7 @@ class FirebaseAuthManager {
 
     suspend fun register(email: String, password: String): Result<FirebaseUser> {
         return try {
+            // Create new user account
             val result = auth.createUserWithEmailAndPassword(email, password).await()
             Result.success(result.user!!)
         } catch (e: Exception) {
