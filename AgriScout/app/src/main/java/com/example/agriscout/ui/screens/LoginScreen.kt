@@ -1,8 +1,3 @@
-// LoginScreen.kt
-// Email + password login and registration screen.
-// Uses FirebaseAuthManager for authentication.
-// On success: navigates to FarmList screen.
-
 package com.example.agriscout.ui.screens
 
 import androidx.compose.foundation.layout.*
@@ -29,33 +24,22 @@ fun LoginScreen(onLoginSuccess: () -> Unit) {
     var isRegisterMode by remember { mutableStateOf(false) }
 
     Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(32.dp),
+        modifier = Modifier.fillMaxSize().padding(32.dp),
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        // App title
         Text(
             text = "AgriScout",
             fontSize = 32.sp,
             fontWeight = FontWeight.Bold,
             color = MaterialTheme.colorScheme.primary
         )
-        Text(
-            text = "Agricultural Field Management",
-            fontSize = 14.sp,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
+        Text(text = "Agricultural Field Management", fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
 
         Spacer(modifier = Modifier.height(40.dp))
 
-        // Toggle: Login vs Register
-        Text(
-            text = if (isRegisterMode) "Create Account" else "Sign In",
-            fontSize = 20.sp,
-            fontWeight = FontWeight.SemiBold
-        )
+        // Authentication mode header
+        Text(text = if (isRegisterMode) "Create Account" else "Sign In", fontSize = 20.sp, fontWeight = FontWeight.SemiBold)
 
         Spacer(modifier = Modifier.height(24.dp))
 
@@ -85,7 +69,7 @@ fun LoginScreen(onLoginSuccess: () -> Unit) {
 
         Spacer(modifier = Modifier.height(24.dp))
 
-        // Main action button — Login or Register
+        // Handle login or registration based on mode
         Button(
             onClick = {
                 if (email.isBlank() || password.isBlank()) {
@@ -102,7 +86,7 @@ fun LoginScreen(onLoginSuccess: () -> Unit) {
                     }
                     isLoading = false
                     if (result.isSuccess) {
-                        onLoginSuccess() // navigate to FarmList
+                        onLoginSuccess()
                     } else {
                         errorMessage = result.exceptionOrNull()?.message ?: "Authentication failed."
                     }
@@ -120,11 +104,9 @@ fun LoginScreen(onLoginSuccess: () -> Unit) {
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        // Switch between login and register
+        // Toggle between login and registration
         TextButton(onClick = { isRegisterMode = !isRegisterMode; errorMessage = "" }) {
-            Text(
-                text = if (isRegisterMode) "Already have an account? Sign In" else "No account? Register here"
-            )
+            Text(text = if (isRegisterMode) "Already have an account? Sign In" else "No account? Register here")
         }
     }
 }

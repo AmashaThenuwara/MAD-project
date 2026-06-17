@@ -20,26 +20,27 @@ class AgriViewModel(application: Application) : AndroidViewModel(application) {
     private val reportRepo = DiseaseReportRepository(db.diseaseReportDao())
     private val weatherRepo = WeatherRepository()
 
-    // --- Farm state ---
+    // Farm data stream
     val farmsList: StateFlow<List<FarmEntity>> = farmRepo.allFarms
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     val totalFarmCount: StateFlow<Int> = farmRepo.totalFarmCount
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
 
-    // --- Disease Report state ---
+    // Disease report data stream
     val allReports: StateFlow<List<DiseaseReportEntity>> = reportRepo.allReports
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     val totalReportCount: StateFlow<Int> = reportRepo.totalReportCount
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
 
-    // --- Combined Global Sync Stats ---
+    // Calculate total synced records
     val syncedCount: StateFlow<Int> = combine(
         farmRepo.allFarms.map { it.count { f -> f.isSynced } },
         reportRepo.syncedCount
     ) { f, r -> f + r }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
 
+    // Calculate total pending sync records
     val pendingSyncCount: StateFlow<Int> = combine(
         farmRepo.allFarms.map { it.count { f -> !f.isSynced } },
         reportRepo.pendingSyncCount
@@ -48,12 +49,9 @@ class AgriViewModel(application: Application) : AndroidViewModel(application) {
     val hasUnsyncedData: StateFlow<Boolean> = pendingSyncCount.map { it > 0 }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
 
-    // --- Weather state ---
     private val _weatherState = MutableStateFlow<WeatherResult>(WeatherResult.Loading)
     val weatherState: StateFlow<WeatherResult> = _weatherState
 
-    // --- Correct Operations for Screens ---
-    
     fun insertFarm(name: String, farmer: String, location: String, crop: String, stage: String) {
         viewModelScope.launch {
             farmRepo.insertFarm(
@@ -65,6 +63,18 @@ class AgriViewModel(application: Application) : AndroidViewModel(application) {
                     growthStage = stage
                 )
             )
+        }
+    }
+
+    fun updateFarm(farm: FarmEntity) {
+        viewModelScope.launch {
+            farmRepo.updateFarm(farm)
+        }
+    }
+
+    fun deleteFarm(farm: FarmEntity) {
+        viewModelScope.launch {
+            farmRepo.deleteFarm(farm)
         }
     }
 
@@ -83,9 +93,17 @@ class AgriViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    // Helper for Sync
-    fun updateFarm(farm: FarmEntity) = viewModelScope.launch { farmRepo.insertFarm(farm) }
-    fun updateReport(report: DiseaseReportEntity) = viewModelScope.launch { reportRepo.insertReport(report) }
+    fun updateReport(report: DiseaseReportEntity) {
+        viewModelScope.launch {
+            reportRepo.updateReport(report)
+        }
+    }
+
+    fun deleteReport(report: DiseaseReportEntity) {
+        viewModelScope.launch {
+            reportRepo.deleteReport(report)
+        }
+    }
 
     fun fetchWeather(lat: Double, lon: Double) {
         viewModelScope.launch {

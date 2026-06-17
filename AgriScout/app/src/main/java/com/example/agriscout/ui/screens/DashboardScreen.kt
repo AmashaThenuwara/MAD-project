@@ -68,40 +68,32 @@ fun DashboardScreen(
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
 
-            // Analytics cards row
+            // Statistical overview section
             Text("Overview", fontWeight = FontWeight.SemiBold, fontSize = 18.sp)
 
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                StatCard("Farms", totalFarms.toString(),
-                    Icons.Default.Home, Modifier.weight(1f))
-                StatCard("Reports", totalReports.toString(),
-                    Icons.Default.Warning, Modifier.weight(1f))
+                StatCard("Farms", totalFarms.toString(), Icons.Default.Home, Modifier.weight(1f))
+                StatCard("Reports", totalReports.toString(), Icons.Default.Warning, Modifier.weight(1f))
             }
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                StatCard("Synced", synced.toString(),
-                    Icons.Default.CheckCircle, Modifier.weight(1f))
-                StatCard("Pending Sync", pendingSync.toString(),
-                    Icons.Default.Refresh, Modifier.weight(1f))
+                StatCard("Synced", synced.toString(), Icons.Default.CheckCircle, Modifier.weight(1f))
+                StatCard("Pending Sync", pendingSync.toString(), Icons.Default.Refresh, Modifier.weight(1f))
             }
 
             Spacer(modifier = Modifier.height(8.dp))
             Text("Quick Actions", fontWeight = FontWeight.SemiBold, fontSize = 18.sp)
 
-            // Navigation cards
-            ActionCard("My Farms", "View and manage farms",
-                Icons.Default.Home, onNavigateToFarms)
-            ActionCard("Disease Reports", "View all disease reports",
-                Icons.Default.Warning, onNavigateToReports)
-            ActionCard("Weather", "Check farm weather conditions",
-                Icons.Default.Info, onNavigateToWeather)
-            ActionCard("Sync Data", "Upload local data to Firebase",
-                Icons.Default.Refresh, onNavigateToSync)
+            // Primary navigation options
+            ActionCard("My Farms", "View and manage farms", Icons.Default.Home, onNavigateToFarms)
+            ActionCard("Disease Reports", "View all disease reports", Icons.Default.Warning, onNavigateToReports)
+            ActionCard("Weather", "Check farm weather conditions", Icons.Default.Info, onNavigateToWeather)
+            ActionCard("Sync Data", "Upload local data to Firebase", Icons.Default.Refresh, onNavigateToSync)
         }
     }
 }
@@ -113,14 +105,10 @@ fun StatCard(title: String, value: String, icon: ImageVector, modifier: Modifier
             modifier = Modifier.padding(16.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Icon(icon, contentDescription = null,
-                tint = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.size(28.dp))
+            Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(28.dp))
             Spacer(modifier = Modifier.height(8.dp))
-            Text(value, fontSize = 28.sp, fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.primary)
-            Text(title, fontSize = 12.sp,
-                color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(value, fontSize = 28.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+            Text(title, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }
 }
@@ -128,9 +116,7 @@ fun StatCard(title: String, value: String, icon: ImageVector, modifier: Modifier
 @Composable
 fun ActionCard(title: String, subtitle: String, icon: ImageVector, onClick: () -> Unit) {
     Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable { onClick() },
+        modifier = Modifier.fillMaxWidth().clickable { onClick() },
         elevation = CardDefaults.cardElevation(2.dp)
     ) {
         Row(
@@ -138,16 +124,12 @@ fun ActionCard(title: String, subtitle: String, icon: ImageVector, onClick: () -
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            Icon(icon, contentDescription = null,
-                tint = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.size(32.dp))
+            Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(32.dp))
             Column(modifier = Modifier.weight(1f)) {
                 Text(title, fontWeight = FontWeight.SemiBold, fontSize = 16.sp)
-                Text(subtitle, fontSize = 13.sp,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(subtitle, fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
-            Icon(Icons.Default.ArrowForward, contentDescription = null,
-                tint = MaterialTheme.colorScheme.onSurfaceVariant)
+            Icon(Icons.Default.ArrowForward, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }
 }

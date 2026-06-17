@@ -61,6 +61,7 @@ fun ReportsListScreen(
                             text = { Text("Export Detailed PDF") },
                             onClick = {
                                 showMenu = false
+                                // Export reports to PDF
                                 val uri = ReportExporter.exportToPdf(context, reports, farms)
                                 if (uri != null) {
                                     val intent = Intent(Intent.ACTION_SEND).apply {
@@ -77,6 +78,7 @@ fun ReportsListScreen(
                             text = { Text("Export Detailed CSV") },
                             onClick = {
                                 showMenu = false
+                                // Export reports to CSV
                                 val uri = ReportExporter.exportToCsv(context, reports, farms)
                                 if (uri != null) {
                                     val intent = Intent(Intent.ACTION_SEND).apply {
@@ -134,7 +136,7 @@ fun ReportCard(report: DiseaseReportEntity) {
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                // Image display
+                // Display disease image
                 if (report.imagePath.isNotEmpty()) {
                     AsyncImage(
                         model = File(report.imagePath),

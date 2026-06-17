@@ -38,7 +38,7 @@ fun SyncScreen(
     var isSyncing by remember { mutableStateOf(false) }
     var activeWorkId by remember { mutableStateOf<UUID?>(null) }
 
-    // Observe WorkManager state properly
+    // Monitor sync progress via WorkManager
     LaunchedEffect(activeWorkId) {
         activeWorkId?.let { id ->
             WorkManager.getInstance(context)
@@ -53,15 +53,11 @@ fun SyncScreen(
                         }
                         WorkInfo.State.FAILED -> {
                             isSyncing = false
-                            syncStatus = "❌ Sync failed. Check internet or Firebase rules."
+                            syncStatus = "❌ Sync failed. Check connection."
                             activeWorkId = null
                         }
-                        WorkInfo.State.RUNNING -> {
-                            syncStatus = "⏳ Uploading data..."
-                        }
-                        WorkInfo.State.ENQUEUED -> {
-                            syncStatus = "⏳ Waiting in queue..."
-                        }
+                        WorkInfo.State.RUNNING -> syncStatus = "⏳ Uploading data..."
+                        WorkInfo.State.ENQUEUED -> syncStatus = "⏳ Waiting in queue..."
                         else -> {}
                     }
                 }
@@ -92,9 +88,7 @@ fun SyncScreen(
 
             Card(
                 modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.surfaceVariant
-                )
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
             ) {
                 Column(
                     modifier = Modifier.padding(16.dp),
@@ -106,21 +100,13 @@ fun SyncScreen(
                 }
             }
 
-            Spacer(modifier = Modifier.height(16.dp))
-
-            if (isSyncing) {
-                CircularProgressIndicator(
-                    modifier = Modifier.size(48.dp),
-                    strokeWidth = 4.dp
-                )
-            }
+            if (isSyncing) CircularProgressIndicator(modifier = Modifier.size(48.dp))
 
             Text(
                 text = syncStatus,
                 color = if (syncStatus.contains("✅")) Color(0xFF2E7D32) else MaterialTheme.colorScheme.onSurfaceVariant,
                 fontSize = 15.sp,
-                fontWeight = if (syncStatus.contains("✅")) FontWeight.Bold else FontWeight.Normal,
-                modifier = Modifier.padding(horizontal = 8.dp)
+                fontWeight = if (syncStatus.contains("✅")) FontWeight.Bold else FontWeight.Normal
             )
 
             Spacer(modifier = Modifier.weight(1f))
@@ -132,17 +118,11 @@ fun SyncScreen(
                     activeWorkId = workRequest.id
                     WorkManager.getInstance(context).enqueue(workRequest)
                 },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(56.dp),
+                modifier = Modifier.fillMaxWidth().height(56.dp),
                 enabled = !isSyncing && hasUnsynced,
                 shape = RoundedCornerShape(12.dp)
             ) {
-                Text(
-                    if (!hasUnsynced) "Everything Synced" else "Sync with Firebase",
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.Bold
-                )
+                Text(if (!hasUnsynced) "Everything Synced" else "Sync with Firebase", fontWeight = FontWeight.Bold)
             }
         }
     }

@@ -1,8 +1,3 @@
-// WeatherScreen.kt
-// Fetches and displays real-time weather at the device's current GPS location.
-// Uses FusedLocationProviderClient to get coordinates, then calls WeatherRepository
-// via AgriViewModel.fetchWeather(lat, lon).
-
 package com.example.agriscout.ui.screens
 
 import android.Manifest

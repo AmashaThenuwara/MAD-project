@@ -12,6 +12,7 @@ import kotlinx.coroutines.delay
 
 @Composable
 fun SplashScreen(onNavigateNext: () -> Unit) {
+    // Navigate to next screen after 2 seconds
     LaunchedEffect(key1 = true) {
         delay(2000)
         onNavigateNext()

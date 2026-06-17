@@ -4,7 +4,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
@@ -15,23 +15,34 @@ import com.example.agriscout.ui.viewmodel.AgriViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun AddFarmScreen(
+fun EditFarmScreen(
+    farmId: Long,
     viewModel: AgriViewModel,
     onNavigateBack: () -> Unit
 ) {
-    var farmName by remember { mutableStateOf("") }
-    var farmerName by remember { mutableStateOf("") }
-    var locationName by remember { mutableStateOf("") }
-    var cropType by remember { mutableStateOf("") }
-    var growthStage by remember { mutableStateOf("") }
+    val farmsList by viewModel.farmsList.collectAsState()
+    val farm = farmsList.find { it.farmId == farmId }
+
+    if (farm == null) {
+        LaunchedEffect(Unit) {
+            onNavigateBack()
+        }
+        return
+    }
+
+    var farmName by remember { mutableStateOf(farm.farmName) }
+    var farmerName by remember { mutableStateOf(farm.farmerName) }
+    var locationName by remember { mutableStateOf(farm.locationName) }
+    var cropType by remember { mutableStateOf(farm.cropType) }
+    var growthStage by remember { mutableStateOf(farm.growthStage) }
 
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Register New Farm", fontWeight = FontWeight.Bold) },
+                title = { Text("Edit Farm Details", fontWeight = FontWeight.Bold) },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Back")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
                     }
                 }
             )
@@ -45,7 +56,7 @@ fun AddFarmScreen(
                 .verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            Text("General Details", fontSize = 18.sp, fontWeight = FontWeight.Bold)
+            Text("Update Details", fontSize = 18.sp, fontWeight = FontWeight.Bold)
 
             OutlinedTextField(
                 value = farmName,
@@ -69,12 +80,12 @@ fun AddFarmScreen(
             )
 
             HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
-            Text("Initial Crop Profiling", fontSize = 18.sp, fontWeight = FontWeight.Bold)
+            Text("Crop Profiling", fontSize = 18.sp, fontWeight = FontWeight.Bold)
 
             OutlinedTextField(
                 value = cropType,
                 onValueChange = { cropType = it },
-                label = { Text("Crop Variant (e.g., Rice, Maize)") },
+                label = { Text("Crop Variant") },
                 modifier = Modifier.fillMaxWidth()
             )
 
@@ -90,13 +101,15 @@ fun AddFarmScreen(
             Button(
                 onClick = {
                     if (farmName.isNotBlank() && farmerName.isNotBlank()) {
-                        // Persist new farm to local database
-                        viewModel.insertFarm(
-                            name = farmName,
-                            farmer = farmerName,
-                            location = locationName,
-                            crop = cropType,
-                            stage = growthStage
+                        viewModel.updateFarm(
+                            farm.copy(
+                                farmName = farmName,
+                                farmerName = farmerName,
+                                locationName = locationName,
+                                cropType = cropType,
+                                growthStage = growthStage,
+                                isSynced = false
+                            )
                         )
                         onNavigateBack()
                     }
@@ -106,7 +119,7 @@ fun AddFarmScreen(
                     .height(50.dp),
                 enabled = farmName.isNotBlank() && farmerName.isNotBlank()
             ) {
-                Text("Save Farm", fontSize = 16.sp)
+                Text("Update Farm Info", fontSize = 16.sp)
             }
         }
     }
