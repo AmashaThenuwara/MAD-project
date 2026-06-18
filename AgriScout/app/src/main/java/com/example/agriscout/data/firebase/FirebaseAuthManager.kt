@@ -20,11 +20,22 @@ class FirebaseAuthManager {
         }
     }
 
-    suspend fun register(email: String, password: String): Result<FirebaseUser> {
+    suspend fun register(email: String, password: String, name: String): Result<FirebaseUser> {
         return try {
             // Create new user account
             val result = auth.createUserWithEmailAndPassword(email, password).await()
-            Result.success(result.user!!)
+            val user = result.user!!
+            
+            // Set the display name
+            val profileUpdates = com.google.firebase.auth.UserProfileChangeRequest.Builder()
+                .setDisplayName(name)
+                .build()
+            user.updateProfile(profileUpdates).await()
+            
+            // Reload user to ensure profile is updated locally
+            user.reload().await()
+            
+            Result.success(auth.currentUser!!)
         } catch (e: Exception) {
             Result.failure(e)
         }

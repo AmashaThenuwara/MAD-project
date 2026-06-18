@@ -96,6 +96,7 @@ fun AppNavigation() {
                 onNavigateToFarms = { navController.navigate(Screen.FarmList.route) },
                 onNavigateToReports = { navController.navigate(Screen.ReportsList.route) },
                 onNavigateToWeather = { navController.navigate(Screen.Weather.route) },
+                onNavigateToSelectFarmForCrops = { navController.navigate(Screen.SelectFarmForCropDetails.route) },
                 onNavigateToSync = { navController.navigate(Screen.Sync.route) },
                 onNavigateToProfile = { navController.navigate(Screen.Profile.route) },
                 onLogout = {
@@ -253,6 +254,28 @@ fun AppNavigation() {
                         popUpTo(0) { inclusive = true }
                     }
                 }
+            )
+        }
+
+        composable(Screen.SelectFarmForCropDetails.route) {
+            SelectFarmForCropDetailsScreen(
+                viewModel = agriViewModel,
+                onNavigateBack = { navController.popBackStack() },
+                onFarmSelected = { farmId ->
+                    navController.navigate(Screen.FarmCropsDetailedList.createRoute(farmId))
+                }
+            )
+        }
+
+        composable(
+            route = Screen.FarmCropsDetailedList.route,
+            arguments = listOf(navArgument("farmId") { type = NavType.LongType })
+        ) { backStackEntry ->
+            val farmId = backStackEntry.arguments?.getLong("farmId") ?: 0L
+            FarmCropsDetailedListScreen(
+                farmId = farmId,
+                viewModel = agriViewModel,
+                onNavigateBack = { navController.popBackStack() }
             )
         }
     }

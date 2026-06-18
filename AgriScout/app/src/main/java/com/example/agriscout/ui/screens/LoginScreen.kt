@@ -20,6 +20,7 @@ fun LoginScreen(onLoginSuccess: () -> Unit) {
     val authManager = remember { FirebaseAuthManager() }
     val scope = rememberCoroutineScope()
 
+    var name by remember { mutableStateOf("") }
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var errorMessage by remember { mutableStateOf("") }
@@ -67,6 +68,21 @@ fun LoginScreen(onLoginSuccess: () -> Unit) {
                     
                     Spacer(modifier = Modifier.height(24.dp))
 
+                    if (isRegisterMode) {
+                        OutlinedTextField(
+                            value = name,
+                            onValueChange = { name = it },
+                            label = { Text("Full Name (Officer Name)") },
+                            modifier = Modifier.fillMaxWidth(),
+                            singleLine = true,
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedBorderColor = MaterialTheme.colorScheme.primary,
+                                unfocusedBorderColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.5f)
+                            )
+                        )
+                        Spacer(modifier = Modifier.height(16.dp))
+                    }
+
                     OutlinedTextField(
                         value = email,
                         onValueChange = { email = it },
@@ -107,11 +123,15 @@ fun LoginScreen(onLoginSuccess: () -> Unit) {
                                 errorMessage = "Email and password cannot be empty."
                                 return@AnimatedButton
                             }
+                            if (isRegisterMode && name.isBlank()) {
+                                errorMessage = "Please enter your full name."
+                                return@AnimatedButton
+                            }
                             isLoading = true
                             errorMessage = ""
                             scope.launch {
                                 val result = if (isRegisterMode) {
-                                    authManager.register(email.trim(), password.trim())
+                                    authManager.register(email.trim(), password.trim(), name.trim())
                                 } else {
                                     authManager.login(email.trim(), password.trim())
                                 }

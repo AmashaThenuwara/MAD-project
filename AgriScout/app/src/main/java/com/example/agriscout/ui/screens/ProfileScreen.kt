@@ -60,7 +60,8 @@ fun ProfileScreen(
                 }
             }
 
-            Text(text = user?.email ?: "Unknown User", fontSize = 18.sp, fontWeight = FontWeight.SemiBold)
+            Text(text = user?.displayName.takeIf { !it.isNullOrBlank() } ?: "Unknown Officer", fontSize = 22.sp, fontWeight = FontWeight.Bold)
+            Text(text = user?.email ?: "No Email", fontSize = 16.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
             Text(text = "UID: ${user?.uid?.take(12)}...", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
 
             HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))

@@ -4,6 +4,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ExitToApp
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -24,6 +25,7 @@ fun DashboardScreen(
     onNavigateToFarms: () -> Unit,
     onNavigateToReports: () -> Unit,
     onNavigateToWeather: () -> Unit,
+    onNavigateToSelectFarmForCrops: () -> Unit,
     onNavigateToSync: () -> Unit,
     onNavigateToProfile: () -> Unit,
     onLogout: () -> Unit
@@ -35,6 +37,18 @@ fun DashboardScreen(
     val synced by viewModel.syncedCount.collectAsState()
 
     val userEmail = authManager.currentUser?.email ?: "Officer"
+    
+    // Get display name from Firebase Auth, fallback to formatted email if not set
+    val displayName = authManager.currentUser?.displayName.takeIf { !it.isNullOrBlank() }
+        ?: if (userEmail != "Officer") {
+            userEmail.substringBefore("@")
+                .replace(Regex("[^a-zA-Z]"), " ")
+                .split(" ")
+                .filter { it.isNotBlank() }
+                .joinToString(" ") { it.replaceFirstChar { char -> char.uppercase() } }
+        } else {
+            "Officer"
+        }
 
     Scaffold(
         topBar = {
@@ -52,7 +66,7 @@ fun DashboardScreen(
                         authManager.logout()
                         onLogout()
                     }) {
-                        Icon(Icons.Default.ExitToApp, contentDescription = "Logout", tint = MaterialTheme.colorScheme.primary)
+                        Icon(Icons.AutoMirrored.Filled.ExitToApp, contentDescription = "Logout", tint = MaterialTheme.colorScheme.primary)
                     }
                 }
             )
@@ -73,7 +87,7 @@ fun DashboardScreen(
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
                 Text(
-                    text = userEmail,
+                    text = displayName,
                     fontSize = 24.sp,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.primary
@@ -113,6 +127,20 @@ fun DashboardScreen(
                         modifier = Modifier.weight(1f).height(140.dp)
                     )
                 }
+                Spacer(modifier = Modifier.height(16.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    BentoCard(
+                        title = "Crop Details",
+                        subtitle = "View by farm",
+                        icon = Icons.Default.Eco,
+                        onClick = onNavigateToSelectFarmForCrops,
+                        modifier = Modifier.weight(1f).height(140.dp)
+                    )
+                    Spacer(modifier = Modifier.weight(1f))
+                }
             }
 
             item {
@@ -125,7 +153,7 @@ fun DashboardScreen(
                 ) {
                     StatBox("Farms", totalFarms.toString(), Modifier.weight(1f))
                     StatBox("Reports", totalReports.toString(), Modifier.weight(1f))
-                    StatBox("Pending", pendingSync.toString(), Modifier.weight(1f))
+                    StatBox("Pending", pendingSync.toString(), Modifier.weight(1f).clickable { onNavigateToSync() })
                 }
             }
 

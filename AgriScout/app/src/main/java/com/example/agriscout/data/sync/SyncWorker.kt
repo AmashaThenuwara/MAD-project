@@ -32,7 +32,14 @@ class SyncWorker(context: Context, workerParams: WorkerParameters) : CoroutineWo
 
             // Step 1.5: Upload unsynced crops to Firestore
             cropRepo.getUnsyncedCrops().forEach { crop ->
-                val result = withTimeoutOrNull(15000) { firestoreManager.uploadCrop(crop) }
+                var cloudImageUrl = ""
+                if (crop.imagePath.isNotBlank() && !crop.imagePath.startsWith("http")) {
+                    val imageFile = File(crop.imagePath)
+                    if (imageFile.exists()) {
+                        cloudImageUrl = withTimeoutOrNull(45000) { storageManager.uploadDiseaseImage(imageFile) }?.getOrNull() ?: ""
+                    }
+                }
+                val result = withTimeoutOrNull(15000) { firestoreManager.uploadCrop(crop, cloudImageUrl) }
                 if (result?.isSuccess == true) cropRepo.markCropAsSynced(crop.cropId)
             }
 

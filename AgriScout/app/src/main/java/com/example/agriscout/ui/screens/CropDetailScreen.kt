@@ -27,12 +27,14 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.example.agriscout.ui.theme.NeonGreen
 import com.example.agriscout.ui.theme.ShinyGradientStart
 import com.example.agriscout.ui.theme.ShinyGradientEnd
 import com.example.agriscout.ui.viewmodel.AgriViewModel
 import com.example.agriscout.ui.components.ShinyCard
+import java.io.File
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -56,26 +58,23 @@ fun CropDetailScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(crop?.commonName ?: "Crop Details", fontWeight = FontWeight.Bold, color = Color.White) },
+                title = { Text(crop?.commonName ?: "Crop Details", fontWeight = FontWeight.Bold) },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = Color.White)
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
                     }
                 },
                 actions = {
                     crop?.let { currentCrop ->
                         IconButton(onClick = { onNavigateToEditCrop(currentCrop.farmId, currentCrop.cropId) }) {
-                            Icon(Icons.Default.Edit, contentDescription = "Edit Crop", tint = Color.White)
+                            Icon(Icons.Default.Edit, contentDescription = "Edit Crop")
                         }
                         IconButton(onClick = { showDeleteConfirmDialog = true }) {
-                            Icon(Icons.Default.Delete, contentDescription = "Delete Crop", tint = Color.White)
+                            Icon(Icons.Default.Delete, contentDescription = "Delete Crop")
                         }
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = Color.Transparent
-                ),
-                modifier = Modifier.background(primaryGradient)
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.primaryContainer)
             )
         }
     ) { padding ->
@@ -91,7 +90,7 @@ fun CropDetailScreen(
                 Box(modifier = Modifier.fillMaxWidth().padding(16.dp)) {
                     if (crop!!.imagePath.isNotEmpty()) {
                         AsyncImage(
-                            model = crop!!.imagePath,
+                            model = File(crop!!.imagePath),
                             contentDescription = "Crop Image",
                             modifier = Modifier
                                 .fillMaxWidth()

@@ -64,7 +64,7 @@ class FirestoreManager {
     }
 
     // New Crop Sync
-    suspend fun uploadCrop(crop: CropEntity): Result<String> {
+    suspend fun uploadCrop(crop: CropEntity, imageDownloadUrl: String = ""): Result<String> {
         return try {
             val cropMap = hashMapOf(
                 "cropId" to crop.cropId,
@@ -75,7 +75,7 @@ class FirestoreManager {
                 "origin" to crop.origin,
                 "soilType" to crop.soilType,
                 "fertilizerType" to crop.fertilizerType,
-                "imagePath" to crop.imagePath,
+                "imagePath" to imageDownloadUrl,
                 "uploadedBy" to userId
             )
             db.collection("crops")

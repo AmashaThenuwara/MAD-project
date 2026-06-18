@@ -41,13 +41,15 @@ class AgriViewModel(application: Application) : AndroidViewModel(application) {
     // Sync Counts
     val syncedCount: StateFlow<Int> = combine(
         farmRepo.allFarms.map { it.count { f -> f.isSynced } },
+        cropRepo.allCrops.map { it.count { c -> c.isSynced } },
         reportRepo.syncedCount
-    ) { f, r -> f + r }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
+    ) { f, c, r -> f + c + r }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
 
     val pendingSyncCount: StateFlow<Int> = combine(
         farmRepo.allFarms.map { it.count { f -> !f.isSynced } },
+        cropRepo.allCrops.map { it.count { c -> !c.isSynced } },
         reportRepo.pendingSyncCount
-    ) { f, r -> f + r }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
+    ) { f, c, r -> f + c + r }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
 
     val hasUnsyncedData: StateFlow<Boolean> = pendingSyncCount.map { it > 0 }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
@@ -140,7 +142,7 @@ class AgriViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    fun updateReport(report: DiseaseReportEntity) = viewModelScope.launch { reportRepo.updateReport(report) }
+    fun updateReport(report: DiseaseReportEntity) = viewModelScope.launch { reportRepo.updateReport(report.copy(syncStatus = "PENDING")) }
     fun deleteReport(report: DiseaseReportEntity) = viewModelScope.launch { reportRepo.deleteReport(report) }
 
     // --- Weather ---

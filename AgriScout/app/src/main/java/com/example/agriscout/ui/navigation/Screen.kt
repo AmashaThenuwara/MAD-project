@@ -28,4 +28,8 @@ sealed class Screen(val route: String) {
     object Weather : Screen("weather_screen")
     object Profile : Screen("profile_screen")
     object Sync : Screen("sync_screen")
+    object SelectFarmForCropDetails : Screen("select_farm_for_crop_details_screen")
+    object FarmCropsDetailedList : Screen("farm_crops_detailed_list_screen/{farmId}") {
+        fun createRoute(farmId: Long) = "farm_crops_detailed_list_screen/$farmId"
+    }
 }

@@ -1,30 +1,40 @@
 package com.example.agriscout.ui.screens
 
+import android.Manifest
+import androidx.camera.core.ImageCapture
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import coil.compose.AsyncImage
 import com.example.agriscout.ui.theme.ShinyGradientStart
 import com.example.agriscout.ui.theme.ShinyGradientEnd
 import com.example.agriscout.ui.viewmodel.AgriViewModel
 import kotlinx.coroutines.launch
 import com.example.agriscout.ui.components.ShinyCard
 import com.example.agriscout.ui.components.AnimatedButton
+import com.google.accompanist.permissions.ExperimentalPermissionsApi
+import com.google.accompanist.permissions.isGranted
+import com.google.accompanist.permissions.rememberMultiplePermissionsState
+import java.io.File
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalPermissionsApi::class)
 @Composable
 fun AddEditCropScreen(
     farmId: Long,
@@ -33,6 +43,7 @@ fun AddEditCropScreen(
     onNavigateBack: () -> Unit,
     onNavigateToCropDetail: (Long) -> Unit
 ) {
+    val context = LocalContext.current
     val scope = rememberCoroutineScope()
     
     var commonName by remember { mutableStateOf("") }
@@ -41,10 +52,29 @@ fun AddEditCropScreen(
     var origin by remember { mutableStateOf("") }
     var soilType by remember { mutableStateOf("") }
     var fertilizerType by remember { mutableStateOf("Organic") }
+    var imagePath by remember { mutableStateOf("") }
 
     val categories = listOf("Vegetable", "Fruit", "Grain", "Legume", "Other")
+    val soilTypes = listOf("Loamy", "Clay", "Sandy", "Silty", "Peaty", "Chalky")
     
     var isEditing by remember { mutableStateOf(false) }
+
+    // Dropdown state
+    var soilDropdownExpanded by remember { mutableStateOf(false) }
+
+    // Camera state
+    var imageCaptureUseCase by remember { mutableStateOf<ImageCapture?>(null) }
+    val permissionsState = rememberMultiplePermissionsState(
+        permissions = listOf(
+            Manifest.permission.CAMERA
+        )
+    )
+
+    LaunchedEffect(Unit) {
+        if (!permissionsState.allPermissionsGranted) {
+            permissionsState.launchMultiplePermissionRequest()
+        }
+    }
 
     LaunchedEffect(cropId) {
         if (cropId != null) {
@@ -57,6 +87,7 @@ fun AddEditCropScreen(
                 origin = it.origin
                 soilType = it.soilType
                 fertilizerType = it.fertilizerType
+                imagePath = it.imagePath
             }
         }
     }
@@ -68,16 +99,13 @@ fun AddEditCropScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(if (isEditing) "Edit Crop" else "Add New Crop", fontWeight = FontWeight.Bold, color = Color.White) },
+                title = { Text(if (isEditing) "Edit Crop" else "Add New Crop", fontWeight = FontWeight.Bold) },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Back", tint = Color.White)
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = Color.Transparent
-                ),
-                modifier = Modifier.background(primaryGradient)
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.primaryContainer)
             )
         }
     ) { innerPadding ->
@@ -88,15 +116,67 @@ fun AddEditCropScreen(
                 .background(MaterialTheme.colorScheme.background)
                 .verticalScroll(rememberScrollState())
         ) {
+            
+            Text(
+                text = if (isEditing) "Edit Crop Details" else "Add New Crop Details", 
+                fontSize = 24.sp, 
+                fontWeight = FontWeight.Bold, 
+                color = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.padding(start = 24.dp, top = 24.dp, bottom = 8.dp)
+            )
+
             ShinyCard(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(24.dp)
+                    .padding(horizontal = 24.dp, vertical = 8.dp)
             ) {
                 Column(
                     modifier = Modifier.padding(24.dp),
                     verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
+                    
+                    // Camera / Image Section
+                    Text("Crop Image", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
+                    if (permissionsState.permissions.isNotEmpty() && permissionsState.permissions[0].status.isGranted) {
+                        Box(modifier = Modifier
+                            .fillMaxWidth()
+                            .height(200.dp)
+                            .shadow(4.dp, RoundedCornerShape(12.dp))
+                            .clip(RoundedCornerShape(12.dp))
+                        ) {
+                            if (imagePath.isEmpty()) {
+                                CameraPreviewWithCapture(
+                                    modifier = Modifier.fillMaxSize(),
+                                    onImageCaptureReady = { imageCaptureUseCase = it }
+                                )
+                            } else {
+                                AsyncImage(
+                                    model = File(imagePath),
+                                    contentDescription = "Crop Image",
+                                    modifier = Modifier.fillMaxSize(),
+                                    contentScale = ContentScale.Crop
+                                )
+                            }
+                        }
+                        
+                        AnimatedButton(
+                            onClick = {
+                                if (imagePath.isEmpty()) {
+                                    capturePhoto(context, imageCaptureUseCase) { path -> imagePath = path }
+                                } else {
+                                    imagePath = "" // Reset to capture again
+                                }
+                            },
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text(if (imagePath.isEmpty()) "Capture Photo" else "Retake Photo")
+                        }
+                    } else {
+                        Text("Camera permission required to capture images.", color = MaterialTheme.colorScheme.error)
+                    }
+
+                    HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
+
                     OutlinedTextField(
                         value = commonName,
                         onValueChange = { commonName = it },
@@ -134,13 +214,37 @@ fun AddEditCropScreen(
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(12.dp)
                     )
-                    OutlinedTextField(
-                        value = soilType,
-                        onValueChange = { soilType = it },
-                        label = { Text("Soil Type") },
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(12.dp)
-                    )
+                    
+                    // Soil Type Dropdown
+                    ExposedDropdownMenuBox(
+                        expanded = soilDropdownExpanded,
+                        onExpandedChange = { soilDropdownExpanded = !soilDropdownExpanded },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        OutlinedTextField(
+                            value = soilType.ifEmpty { "Select Soil Type" },
+                            onValueChange = {},
+                            readOnly = true,
+                            label = { Text("Soil Type") },
+                            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = soilDropdownExpanded) },
+                            modifier = Modifier.menuAnchor().fillMaxWidth(),
+                            shape = RoundedCornerShape(12.dp)
+                        )
+                        ExposedDropdownMenu(
+                            expanded = soilDropdownExpanded,
+                            onDismissRequest = { soilDropdownExpanded = false }
+                        ) {
+                            soilTypes.forEach { type ->
+                                DropdownMenuItem(
+                                    text = { Text(type) },
+                                    onClick = {
+                                        soilType = type
+                                        soilDropdownExpanded = false
+                                    }
+                                )
+                            }
+                        }
+                    }
                     
                     Text("Fertilizer", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
                     Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
@@ -170,7 +274,8 @@ fun AddEditCropScreen(
                                                     category = category,
                                                     origin = origin,
                                                     soilType = soilType,
-                                                    fertilizerType = fertilizerType
+                                                    fertilizerType = fertilizerType,
+                                                    imagePath = imagePath
                                                 )
                                             )
                                         }
@@ -183,7 +288,8 @@ fun AddEditCropScreen(
                                             category = category,
                                             origin = origin,
                                             soilType = soilType,
-                                            fertilizerType = fertilizerType
+                                            fertilizerType = fertilizerType,
+                                            imagePath = imagePath
                                         )
                                         onNavigateToCropDetail(newCropId)
                                     }
@@ -197,6 +303,8 @@ fun AddEditCropScreen(
                     }
                 }
             }
+            
+            Spacer(modifier = Modifier.height(24.dp))
         }
     }
 }
