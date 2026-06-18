@@ -11,6 +11,7 @@ import android.graphics.Typeface
 import android.graphics.pdf.PdfDocument
 import android.net.Uri
 import androidx.core.content.FileProvider
+import com.example.agriscout.data.local.entity.CropEntity
 import com.example.agriscout.data.local.entity.DiseaseReportEntity
 import com.example.agriscout.data.local.entity.FarmEntity
 import java.io.File
@@ -23,11 +24,13 @@ object ReportExporter {
     fun exportToCsv(
         context: Context,
         reports: List<DiseaseReportEntity>,
-        farms: List<FarmEntity>
+        farms: List<FarmEntity>,
+        crops: List<CropEntity>
     ): Uri? {
         val fileName = "AgriScout_Reports_${System.currentTimeMillis()}.csv"
         val file = File(context.cacheDir, fileName)
         val farmMap = farms.associateBy { it.farmId }
+        val cropMap = crops.associateBy { it.cropId }
 
         try {
             val writer = file.printWriter()
@@ -40,11 +43,13 @@ object ReportExporter {
                 val farm = farmMap[report.farmId]
                 val farmName = farm?.farmName ?: "Unknown"
                 val farmer = farm?.farmerName ?: "Unknown"
-                val crop = farm?.cropType ?: "Unknown"
+                
+                val crop = cropMap[report.cropId]
+                val cropName = crop?.commonName ?: "Unknown"
                 
                 val date = dateFormat.format(Date(report.date))
                 val notes = report.notes.replace("\n", " ").replace(",", ";")
-                writer.println("${report.reportId},$farmName,$farmer,$crop,${report.diseaseName},$date,${report.latitude},${report.longitude},\"$notes\"")
+                writer.println("${report.reportId},$farmName,$farmer,$cropName,${report.diseaseName},$date,${report.latitude},${report.longitude},\"$notes\"")
             }
             writer.close()
             return FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", file)
@@ -57,11 +62,13 @@ object ReportExporter {
     fun exportToPdf(
         context: Context,
         reports: List<DiseaseReportEntity>,
-        farms: List<FarmEntity>
+        farms: List<FarmEntity>,
+        crops: List<CropEntity>
     ): Uri? {
         val fileName = "AgriScout_Reports_${System.currentTimeMillis()}.pdf"
         val file = File(context.cacheDir, fileName)
         val farmMap = farms.associateBy { it.farmId }
+        val cropMap = crops.associateBy { it.cropId }
 
         val pdfDocument = PdfDocument()
         val titlePaint = Paint().apply {
@@ -93,6 +100,7 @@ object ReportExporter {
 
         reports.forEachIndexed { index, report ->
             val farm = farmMap[report.farmId]
+            val crop = cropMap[report.cropId]
             
             // Check for enough space (increased requirement for image)
             if (y > 650) {
@@ -115,7 +123,7 @@ object ReportExporter {
             y += 18f
             canvas.drawText("• Farmer: ${farm?.farmerName ?: "N/A"}", 70f, y, textPaint)
             y += 18f
-            canvas.drawText("• Crop: ${farm?.cropType ?: "N/A"} (${farm?.growthStage ?: "N/A"})", 70f, y, textPaint)
+            canvas.drawText("• Crop: ${crop?.commonName ?: "N/A"}", 70f, y, textPaint)
             y += 22f
 
             // Report Details Section

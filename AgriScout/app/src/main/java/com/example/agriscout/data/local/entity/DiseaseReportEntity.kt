@@ -7,11 +7,12 @@ import androidx.room.PrimaryKey
 data class DiseaseReportEntity(
     @PrimaryKey(autoGenerate = true) val reportId: Long = 0,
     val farmId: Long,
+    val cropId: Long = 0, // New: Link to specific crop
     val diseaseName: String,
     val notes: String,
     val imagePath: String = "",
     val latitude: Double = 0.0,
     val longitude: Double = 0.0,
-    val syncStatus: String = "PENDING", // "PENDING" or "SYNCED"
+    val syncStatus: String = "PENDING",
     val date: Long = System.currentTimeMillis()
 )

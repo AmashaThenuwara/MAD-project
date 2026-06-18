@@ -10,43 +10,61 @@ import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.graphics.Color
 
 private val DarkColorScheme = darkColorScheme(
-    primary = Purple80,
-    secondary = PurpleGrey80,
-    tertiary = Pink80
+    primary = PureWhite,
+    onPrimary = DarkGreenBackground,
+    secondary = PureWhite,
+    onSecondary = DarkGreenBackground,
+    tertiary = PureWhite,
+    onTertiary = DarkGreenBackground,
+    background = DarkGreenBackground,
+    onBackground = PureWhite,
+    surface = DarkGreenSurface,
+    onSurface = PureWhite,
+    primaryContainer = TranslucentWhite,
+    onPrimaryContainer = PureWhite,
+    secondaryContainer = TranslucentWhite,
+    onSecondaryContainer = PureWhite,
+    error = Color(0xFFCF6679),
+    onError = DarkGreenBackground,
+    errorContainer = Color(0xFF4A0F17),
+    onErrorContainer = PureWhite,
+    surfaceVariant = TranslucentWhite,
+    onSurfaceVariant = PureWhite
 )
 
 private val LightColorScheme = lightColorScheme(
-    primary = Purple40,
-    secondary = PurpleGrey40,
-    tertiary = Pink40
-
-    /* Other default colors to override
-    background = Color(0xFFFFFBFE),
-    surface = Color(0xFFFFFBFE),
-    onPrimary = Color.White,
-    onSecondary = Color.White,
-    onTertiary = Color.White,
-    onBackground = Color(0xFF1C1B1F),
-    onSurface = Color(0xFF1C1B1F),
-    */
+    primary = Green40,
+    secondary = GreenGrey40,
+    tertiary = LightGreen40,
+    background = SurfaceLight,
+    surface = CardBackgroundLight,
+    onPrimary = CardBackgroundLight,
+    onSecondary = CardBackgroundLight,
+    onTertiary = CardBackgroundLight,
+    onBackground = SurfaceDark,
+    onSurface = SurfaceDark
 )
 
 @Composable
 fun AgriScoutTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
-    // Dynamic color is available on Android 12+
-    dynamicColor: Boolean = true,
+    // Set dynamicColor to false to force the custom green theme
+    dynamicColor: Boolean = false,
     content: @Composable () -> Unit
 ) {
+    // Forcing dark theme for the shiny dark green layout request, unless explicitly handled
+    // Or we can just let it be dynamic but map both to shiny colors
+    val actualDarkTheme = true // Hardcoding to dark theme for "shining dark green theme" requirement
+    
     val colorScheme = when {
         dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
             val context = LocalContext.current
-            if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
+            if (actualDarkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
         }
-
-        darkTheme -> DarkColorScheme
+        actualDarkTheme -> DarkColorScheme
         else -> LightColorScheme
     }
 

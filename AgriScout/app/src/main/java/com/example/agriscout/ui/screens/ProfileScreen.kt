@@ -14,6 +14,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.agriscout.data.firebase.FirebaseAuthManager
 import com.example.agriscout.ui.viewmodel.AgriViewModel
+import com.example.agriscout.ui.components.AnimatedButton
+import com.example.agriscout.ui.components.ShinyCard
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -65,7 +67,7 @@ fun ProfileScreen(
 
             Text("Activity Summary", fontWeight = FontWeight.SemiBold, fontSize = 16.sp, modifier = Modifier.align(Alignment.Start))
 
-            Card(modifier = Modifier.fillMaxWidth()) {
+            ShinyCard(modifier = Modifier.fillMaxWidth()) {
                 Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     SyncInfoRow("Farms Registered", totalFarms.toString())
                     SyncInfoRow("Disease Reports Filed", totalReports.toString())
@@ -75,10 +77,9 @@ fun ProfileScreen(
 
             Spacer(modifier = Modifier.weight(1f))
 
-            Button(
+            AnimatedButton(
                 onClick = { authManager.logout(); onLogout() },
-                modifier = Modifier.fillMaxWidth().height(50.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
+                modifier = Modifier.fillMaxWidth().height(50.dp)
             ) {
                 Text("Sign Out", fontSize = 16.sp)
             }

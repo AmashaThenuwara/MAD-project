@@ -26,7 +26,11 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
 import coil.compose.AsyncImage
+import com.example.agriscout.data.local.entity.CropEntity
+import com.example.agriscout.data.local.entity.FarmEntity
 import com.example.agriscout.ui.viewmodel.AgriViewModel
+import com.example.agriscout.util.PdfGenerator
+import com.example.agriscout.ui.components.AnimatedButton
 import com.google.accompanist.permissions.ExperimentalPermissionsApi
 import com.google.accompanist.permissions.isGranted
 import com.google.accompanist.permissions.rememberMultiplePermissionsState
@@ -39,13 +43,39 @@ import java.util.*
 @OptIn(ExperimentalPermissionsApi::class, ExperimentalMaterial3Api::class)
 @Composable
 fun DiseaseReportScreen(
-    farmId: Long,
+    farmId: Long = 0L,
     viewModel: AgriViewModel,
     onNavigateBack: () -> Unit
 ) {
     val context = LocalContext.current
-    val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
+
+    // Data
+    val farmsList by viewModel.farmsList.collectAsState()
+
+    // Selection State
+    var selectedFarm by remember { mutableStateOf<FarmEntity?>(null) }
+    var selectedCrop by remember { mutableStateOf<CropEntity?>(null) }
+    var cropsForSelectedFarm by remember { mutableStateOf<List<CropEntity>>(emptyList()) }
+
+    // Pre-select farm if farmId is passed from navigation
+    LaunchedEffect(farmsList, farmId) {
+        if (farmId != 0L && selectedFarm == null) {
+            selectedFarm = farmsList.find { it.farmId == farmId }
+        }
+    }
+
+    // Update crops when farm changes
+    LaunchedEffect(selectedFarm?.farmId) {
+        if (selectedFarm != null) {
+            viewModel.getCropsForFarm(selectedFarm!!.farmId).collect { list ->
+                cropsForSelectedFarm = list
+                selectedCrop = null // Reset crop selection
+            }
+        } else {
+            cropsForSelectedFarm = emptyList()
+        }
+    }
 
     // Form state
     var diseaseName by remember { mutableStateOf("") }
@@ -54,9 +84,7 @@ fun DiseaseReportScreen(
     var latitude by remember { mutableStateOf(0.0) }
     var longitude by remember { mutableStateOf(0.0) }
     var locationText by remember { mutableStateOf("Not captured yet") }
-    var isSaved by remember { mutableStateOf(false) }
 
-    // Camera
     var imageCaptureUseCase by remember { mutableStateOf<ImageCapture?>(null) }
 
     val permissionsState = rememberMultiplePermissionsState(
@@ -72,11 +100,13 @@ fun DiseaseReportScreen(
         }
     }
 
+    // Dropdown Expansions
+    var cropExpanded by remember { mutableStateOf(false) }
+
     Scaffold(
-        snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
-                title = { Text("Disease Report — Farm #$farmId") },
+                title = { Text("Disease Report") },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
                         Icon(Icons.Default.ArrowBack, contentDescription = "Back")
@@ -91,160 +121,118 @@ fun DiseaseReportScreen(
                 .padding(innerPadding)
                 .verticalScroll(rememberScrollState())
         ) {
-            // Camera preview or captured image
-            if (permissionsState.permissions[0].status.isGranted) {
-                Box(modifier = Modifier
-                    .fillMaxWidth()
-                    .height(280.dp)) {
-                    
-                    if (imagePath.isEmpty()) {
-                        CameraPreviewWithCapture(
-                            modifier = Modifier.fillMaxSize(),
-                            onImageCaptureReady = { imageCaptureUseCase = it }
+            // 1. Crop Selection
+            ExposedDropdownMenuBox(
+                expanded = cropExpanded,
+                onExpandedChange = { if (selectedFarm != null) cropExpanded = !cropExpanded },
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp)
+            ) {
+                OutlinedTextField(
+                    value = selectedCrop?.commonName ?: "Select Crop",
+                    onValueChange = {},
+                    readOnly = true,
+                    label = { Text("Select Crop") },
+                    enabled = selectedFarm != null,
+                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = cropExpanded) },
+                    modifier = Modifier.menuAnchor().fillMaxWidth()
+                )
+                ExposedDropdownMenu(expanded = cropExpanded, onDismissRequest = { cropExpanded = false }) {
+                    cropsForSelectedFarm.forEach { crop ->
+                        DropdownMenuItem(
+                            text = { Text(crop.commonName) },
+                            onClick = {
+                                selectedCrop = crop
+                                cropExpanded = false
+                            }
                         )
-                    } else {
-                        AsyncImage(
-                            model = File(imagePath),
-                            contentDescription = "Captured Photo",
-                            modifier = Modifier.fillMaxSize(),
-                            contentScale = ContentScale.Crop
-                        )
-                    }
-
-                    // Captured indicator
-                    if (imagePath.isNotEmpty()) {
-                        Surface(
-                            modifier = Modifier
-                                .align(Alignment.TopEnd)
-                                .padding(8.dp),
-                            color = Color(0xFF2E7D32),
-                            shape = MaterialTheme.shapes.small
-                        ) {
-                            Text(
-                                "✓ Photo captured",
-                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-                                color = Color.White,
-                                fontSize = 12.sp
-                            )
-                        }
-                    }
-                }
-            } else {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(200.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text("Camera & location permissions required")
-                        Spacer(Modifier.height(8.dp))
-                        Button(onClick = { permissionsState.launchMultiplePermissionRequest() }) {
-                            Text("Grant Permissions")
-                        }
                     }
                 }
             }
 
-            // Form fields
-            Column(
-                modifier = Modifier.padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                Text("Report Details", fontWeight = FontWeight.Bold, fontSize = 18.sp)
-
-                OutlinedTextField(
-                    value = diseaseName,
-                    onValueChange = { diseaseName = it },
-                    label = { Text("Disease / Issue Name") },
-                    placeholder = { Text("e.g. Leaf Blight, Fungal Infection") },
-                    modifier = Modifier.fillMaxWidth()
-                )
-
-                OutlinedTextField(
-                    value = notes,
-                    onValueChange = { notes = it },
-                    label = { Text("Field Notes") },
-                    placeholder = { Text("Describe symptoms, affected area, severity...") },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(120.dp),
-                    maxLines = 5
-                )
-
-                // GPS section
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.surfaceVariant
-                    )
-                ) {
-                    Column(modifier = Modifier.padding(12.dp)) {
-                        Text("GPS Location", fontWeight = FontWeight.SemiBold)
-                        Spacer(Modifier.height(4.dp))
-                        Text(locationText, fontSize = 13.sp,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        Spacer(Modifier.height(8.dp))
-                        Button(
-                            onClick = {
-                                getLocation(context) { lat, lon ->
-                                    latitude = lat
-                                    longitude = lon
-                                    locationText = "Lat: %.5f, Lon: %.5f".format(lat, lon)
-                                }
-                            },
-                            enabled = permissionsState.permissions[1].status.isGranted
-                        ) {
-                            Text("Get GPS Location")
+            // Rest of UI (Camera, Inputs) - Only enabled if crop selected
+            if (selectedCrop != null) {
+                // Camera Preview
+                if (permissionsState.permissions[0].status.isGranted) {
+                    Box(modifier = Modifier.fillMaxWidth().height(280.dp)) {
+                        if (imagePath.isEmpty()) {
+                            CameraPreviewWithCapture(
+                                modifier = Modifier.fillMaxSize(),
+                                onImageCaptureReady = { imageCaptureUseCase = it }
+                            )
+                        } else {
+                            AsyncImage(
+                                model = File(imagePath),
+                                contentDescription = "Captured Photo",
+                                modifier = Modifier.fillMaxSize(),
+                                contentScale = ContentScale.Crop
+                            )
                         }
                     }
                 }
 
-                // Capture photo button
-                Button(
-                    onClick = {
-                        if (imagePath.isEmpty()) {
-                            capturePhoto(context, imageCaptureUseCase) { path ->
-                                imagePath = path
-                            }
-                        } else {
-                            imagePath = "" // Allow retake
-                        }
-                    },
-                    modifier = Modifier.fillMaxWidth(),
-                    enabled = permissionsState.permissions[0].status.isGranted
-                ) {
-                    Text(if (imagePath.isEmpty()) "📷 Capture Photo" else "🔄 Retake Photo")
-                }
-
-                Spacer(modifier = Modifier.height(8.dp))
-
-                // Save button
-                Button(
-                    onClick = {
-                        if (diseaseName.isBlank()) {
-                            return@Button
-                        }
-                        viewModel.insertReport(
-                            farmId = farmId,
-                            diseaseName = diseaseName,
-                            notes = notes,
-                            imagePath = imagePath,
-                            lat = latitude,
-                            lon = longitude
-                        )
-                        isSaved = true
-                        onNavigateBack()
-                    },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(50.dp),
-                    enabled = diseaseName.isNotBlank() && !isSaved,
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = MaterialTheme.colorScheme.primary
+                Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    OutlinedTextField(
+                        value = diseaseName, onValueChange = { diseaseName = it },
+                        label = { Text("Disease Name") }, modifier = Modifier.fillMaxWidth()
                     )
-                ) {
-                    Text("Save Report", fontSize = 16.sp)
+                    OutlinedTextField(
+                        value = notes, onValueChange = { notes = it },
+                        label = { Text("Notes") }, modifier = Modifier.fillMaxWidth().height(100.dp), maxLines = 4
+                    )
+
+                    // GPS & Camera Buttons
+                    AnimatedButton(
+                        onClick = {
+                            if (imagePath.isEmpty()) {
+                                capturePhoto(context, imageCaptureUseCase) { path -> imagePath = path }
+                            } else {
+                                imagePath = ""
+                            }
+                        },
+                        modifier = Modifier.fillMaxWidth()
+                    ) { Text(if (imagePath.isEmpty()) "Capture Photo" else "Retake") }
+
+                    AnimatedButton(
+                        onClick = {
+                            getLocation(context) { lat, lon ->
+                                latitude = lat
+                                longitude = lon
+                                locationText = "Lat: $lat, Lon: $lon"
+                            }
+                        },
+                        modifier = Modifier.fillMaxWidth()
+                    ) { Text(if (latitude == 0.0) "Capture Location" else "Location: $locationText") }
+
+                    AnimatedButton(
+                        onClick = {
+                            // Save Logic
+                            if (diseaseName.isNotBlank() && selectedFarm != null && selectedCrop != null) {
+                                viewModel.insertReport(
+                                    farmId = selectedFarm!!.farmId,
+                                    cropId = selectedCrop!!.cropId,
+                                    diseaseName = diseaseName,
+                                    notes = notes,
+                                    imagePath = imagePath,
+                                    lat = latitude,
+                                    lon = longitude
+                                )
+
+                                // Generate PDF
+                                val path = PdfGenerator.createDiseaseReport(
+                                    context,
+                                    selectedFarm!!.farmName,
+                                    selectedCrop!!.commonName,
+                                    diseaseName,
+                                    notes
+                                )
+                                Log.d("PDF", "Saved to $path")
+
+                                onNavigateBack()
+                            }
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                        enabled = diseaseName.isNotBlank()
+                    ) { Text("Save Report & Generate PDF") }
                 }
             }
         }
@@ -258,9 +246,7 @@ fun CameraPreviewWithCapture(
 ) {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
-    val cameraProviderFuture: ListenableFuture<ProcessCameraProvider> = remember(context) {
-        ProcessCameraProvider.getInstance(context)
-    }
+    val cameraProviderFuture = remember { ProcessCameraProvider.getInstance(context) }
 
     AndroidView(
         factory = { ctx ->
@@ -271,31 +257,25 @@ fun CameraPreviewWithCapture(
                 )
             }
 
-            cameraProviderFuture.addListener({
-                val cameraProvider = cameraProviderFuture.get()
+            val preview = Preview.Builder().build().also {
+                it.setSurfaceProvider(previewView.surfaceProvider)
+            }
 
-                val preview = Preview.Builder().build().also {
-                    it.setSurfaceProvider(previewView.surfaceProvider)
-                }
+            val imageCapture = ImageCapture.Builder()
+                .build()
 
-                val imageCapture = ImageCapture.Builder()
-                    .setCaptureMode(ImageCapture.CAPTURE_MODE_MINIMIZE_LATENCY)
-                    .build()
-
+            try {
+                cameraProviderFuture.get().unbindAll()
+                cameraProviderFuture.get().bindToLifecycle(
+                    lifecycleOwner,
+                    CameraSelector.DEFAULT_BACK_CAMERA,
+                    preview,
+                    imageCapture
+                )
                 onImageCaptureReady(imageCapture)
-
-                try {
-                    cameraProvider.unbindAll()
-                    cameraProvider.bindToLifecycle(
-                        lifecycleOwner,
-                        CameraSelector.DEFAULT_BACK_CAMERA,
-                        preview,
-                        imageCapture
-                    )
-                } catch (e: Exception) {
-                    Log.e("CameraPreview", "Binding failed", e)
-                }
-            }, ContextCompat.getMainExecutor(ctx))
+            } catch (exc: Exception) {
+                Log.e("Camera", "Use case binding failed", exc)
+            }
 
             previewView
         },
@@ -303,12 +283,12 @@ fun CameraPreviewWithCapture(
     )
 }
 
-fun capturePhoto(context: Context, imageCapture: ImageCapture?, onCaptured: (String) -> Unit) {
-    imageCapture ?: return
+fun capturePhoto(context: Context, imageCapture: ImageCapture?, onImageSaved: (String) -> Unit) {
+    if (imageCapture == null) return
 
     val photoFile = File(
-        context.filesDir,
-        SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(Date()) + ".jpg"
+        context.externalCacheDir,
+        SimpleDateFormat("yyyyMMdd-HHmmss", Locale.US).format(System.currentTimeMillis()) + ".jpg"
     )
 
     val outputOptions = ImageCapture.OutputFileOptions.Builder(photoFile).build()
@@ -317,26 +297,26 @@ fun capturePhoto(context: Context, imageCapture: ImageCapture?, onCaptured: (Str
         outputOptions,
         ContextCompat.getMainExecutor(context),
         object : ImageCapture.OnImageSavedCallback {
-            override fun onImageSaved(output: ImageCapture.OutputFileResults) {
-                onCaptured(photoFile.absolutePath)
-                Log.d("Camera", "Photo saved: ${photoFile.absolutePath}")
+            override fun onImageSaved(outputFileResults: ImageCapture.OutputFileResults) {
+                onImageSaved(photoFile.absolutePath)
             }
+
             override fun onError(exception: ImageCaptureException) {
-                Log.e("Camera", "Capture failed: ${exception.message}")
+                Log.e("Camera", "Photo capture failed: ${exception.message}", exception)
             }
         }
     )
 }
 
-fun getLocation(context: Context, onResult: (Double, Double) -> Unit) {
+fun getLocation(context: Context, onLocationCaptured: (Double, Double) -> Unit) {
+    val fusedLocationClient = LocationServices.getFusedLocationProviderClient(context)
     try {
-        val fusedClient = LocationServices.getFusedLocationProviderClient(context)
-        fusedClient.lastLocation.addOnSuccessListener { location ->
+        fusedLocationClient.lastLocation.addOnSuccessListener { location ->
             if (location != null) {
-                onResult(location.latitude, location.longitude)
+                onLocationCaptured(location.latitude, location.longitude)
             }
         }
     } catch (e: SecurityException) {
-        Log.e("GPS", "Location permission not granted: ${e.message}")
+        Log.e("Location", "Permission not granted")
     }
 }

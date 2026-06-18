@@ -9,8 +9,8 @@ interface FarmDao {
     @Query("SELECT * FROM farms ORDER BY createdDate DESC")
     fun getAllFarms(): Flow<List<FarmEntity>>
 
-    @Query("SELECT * FROM farms WHERE farmId = :farmId LIMIT 1")
-    suspend fun getFarmById(farmId: Long): FarmEntity?
+    @Query("SELECT * FROM farms WHERE farmId = :farmId")
+    fun getFarmById(farmId: Long): Flow<FarmEntity?>
 
     @Query("SELECT * FROM farms WHERE isSynced = 0")
     suspend fun getUnsyncedFarms(): List<FarmEntity>

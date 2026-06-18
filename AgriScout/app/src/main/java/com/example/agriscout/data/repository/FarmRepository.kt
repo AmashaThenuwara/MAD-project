@@ -15,7 +15,7 @@ class FarmRepository(private val farmDao: FarmDao) {
 
     suspend fun deleteFarm(farm: FarmEntity) = farmDao.deleteFarm(farm)
 
-    suspend fun getFarmById(farmId: Long): FarmEntity? = farmDao.getFarmById(farmId)
+    fun getFarmById(farmId: Long): Flow<FarmEntity?> = farmDao.getFarmById(farmId)
 
     suspend fun getUnsyncedFarms(): List<FarmEntity> = farmDao.getUnsyncedFarms()
 

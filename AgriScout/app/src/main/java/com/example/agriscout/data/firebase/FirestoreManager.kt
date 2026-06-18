@@ -1,5 +1,6 @@
 package com.example.agriscout.data.firebase
 
+import com.example.agriscout.data.local.entity.CropEntity
 import com.example.agriscout.data.local.entity.DiseaseReportEntity
 import com.example.agriscout.data.local.entity.FarmEntity
 import com.google.firebase.auth.FirebaseAuth
@@ -19,9 +20,8 @@ class FirestoreManager {
                 "farmName" to farm.farmName,
                 "farmerName" to farm.farmerName,
                 "locationName" to farm.locationName,
-                "cropType" to farm.cropType,
-                "growthStage" to farm.growthStage,
-                "fieldSizeHectares" to farm.fieldSizeHectares,
+                "landSize" to farm.landSize, // New
+                "locationDetails" to farm.locationDetails, // New
                 "latitude" to farm.latitude,
                 "longitude" to farm.longitude,
                 "createdDate" to farm.createdDate,
@@ -49,9 +49,8 @@ class FirestoreManager {
                     farmName = doc.getString("farmName") ?: "",
                     farmerName = doc.getString("farmerName") ?: "",
                     locationName = doc.getString("locationName") ?: "",
-                    cropType = doc.getString("cropType") ?: "",
-                    growthStage = doc.getString("growthStage") ?: "",
-                    fieldSizeHectares = doc.getDouble("fieldSizeHectares") ?: 0.0,
+                    landSize = doc.getDouble("landSize") ?: 0.0,
+                    locationDetails = doc.getString("locationDetails") ?: "",
                     latitude = doc.getDouble("latitude") ?: 0.0,
                     longitude = doc.getDouble("longitude") ?: 0.0,
                     createdDate = doc.getLong("createdDate") ?: System.currentTimeMillis(),
@@ -64,11 +63,64 @@ class FirestoreManager {
         }
     }
 
+    // New Crop Sync
+    suspend fun uploadCrop(crop: CropEntity): Result<String> {
+        return try {
+            val cropMap = hashMapOf(
+                "cropId" to crop.cropId,
+                "farmId" to crop.farmId,
+                "commonName" to crop.commonName,
+                "scientificName" to crop.scientificName,
+                "category" to crop.category,
+                "origin" to crop.origin,
+                "soilType" to crop.soilType,
+                "fertilizerType" to crop.fertilizerType,
+                "imagePath" to crop.imagePath,
+                "uploadedBy" to userId
+            )
+            db.collection("crops")
+                .document("${userId}_${crop.cropId}")
+                .set(cropMap)
+                .await()
+            Result.success("Crop uploaded successfully")
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun getCropsForFarm(farmId: Long): Result<List<CropEntity>> {
+        return try {
+            val snapshot = db.collection("crops")
+                .whereEqualTo("farmId", farmId)
+                .whereEqualTo("uploadedBy", userId)
+                .get()
+                .await()
+            val crops = snapshot.documents.map { doc ->
+                CropEntity(
+                    cropId = doc.getLong("cropId") ?: 0L,
+                    farmId = doc.getLong("farmId") ?: 0L,
+                    commonName = doc.getString("commonName") ?: "",
+                    scientificName = doc.getString("scientificName") ?: "",
+                    category = doc.getString("category") ?: "",
+                    origin = doc.getString("origin") ?: "",
+                    soilType = doc.getString("soilType") ?: "",
+                    fertilizerType = doc.getString("fertilizerType") ?: "",
+                    imagePath = doc.getString("imagePath") ?: "",
+                    isSynced = true
+                )
+            }
+            Result.success(crops)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
     suspend fun uploadReport(report: DiseaseReportEntity, imageDownloadUrl: String = ""): Result<String> {
         return try {
             val reportMap = hashMapOf(
                 "reportId" to report.reportId,
                 "farmId" to report.farmId,
+                "cropId" to report.cropId,
                 "diseaseName" to report.diseaseName,
                 "notes" to report.notes,
                 "imagePath" to imageDownloadUrl,
@@ -97,6 +149,7 @@ class FirestoreManager {
                 DiseaseReportEntity(
                     reportId = doc.getLong("reportId") ?: 0L,
                     farmId = doc.getLong("farmId") ?: 0L,
+                    cropId = doc.getLong("cropId") ?: 0L,
                     diseaseName = doc.getString("diseaseName") ?: "",
                     notes = doc.getString("notes") ?: "",
                     imagePath = doc.getString("imagePath") ?: "",
@@ -107,6 +160,30 @@ class FirestoreManager {
                 )
             }
             Result.success(reports)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun deleteFarm(farmId: Long): Result<String> {
+        return try {
+            db.collection("farms")
+                .document("${userId}_${farmId}")
+                .delete()
+                .await()
+            Result.success("Farm deleted successfully")
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun deleteCrop(cropId: Long): Result<String> {
+        return try {
+            db.collection("crops")
+                .document("${userId}_${cropId}")
+                .delete()
+                .await()
+            Result.success("Crop deleted successfully")
         } catch (e: Exception) {
             Result.failure(e)
         }

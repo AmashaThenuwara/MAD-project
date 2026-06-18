@@ -26,6 +26,7 @@ import com.example.agriscout.data.local.entity.DiseaseReportEntity
 import com.example.agriscout.ui.viewmodel.AgriViewModel
 import com.example.agriscout.util.ReportExporter
 import java.io.File
+import com.example.agriscout.ui.components.ShinyCard
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -37,6 +38,7 @@ fun ReportsListScreen(
 ) {
     val reports by viewModel.allReports.collectAsState()
     val farms by viewModel.farmsList.collectAsState()
+    val crops by viewModel.allCrops.collectAsState()
     val context = LocalContext.current
     var showMenu by remember { mutableStateOf(false) }
 
@@ -62,7 +64,7 @@ fun ReportsListScreen(
                             onClick = {
                                 showMenu = false
                                 // Export reports to PDF
-                                val uri = ReportExporter.exportToPdf(context, reports, farms)
+                                val uri = ReportExporter.exportToPdf(context, reports, farms, crops)
                                 if (uri != null) {
                                     val intent = Intent(Intent.ACTION_SEND).apply {
                                         type = "application/pdf"
@@ -79,7 +81,7 @@ fun ReportsListScreen(
                             onClick = {
                                 showMenu = false
                                 // Export reports to CSV
-                                val uri = ReportExporter.exportToCsv(context, reports, farms)
+                                val uri = ReportExporter.exportToCsv(context, reports, farms, crops)
                                 if (uri != null) {
                                     val intent = Intent(Intent.ACTION_SEND).apply {
                                         type = "text/csv"
@@ -127,9 +129,8 @@ fun ReportCard(report: DiseaseReportEntity) {
         SimpleDateFormat("dd MMM yyyy, HH:mm", Locale.getDefault()).format(Date(report.date))
     }
 
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        elevation = CardDefaults.cardElevation(2.dp)
+    ShinyCard(
+        modifier = Modifier.fillMaxWidth()
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             Row(

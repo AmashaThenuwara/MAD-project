@@ -22,10 +22,18 @@ class SyncWorker(context: Context, workerParams: WorkerParameters) : CoroutineWo
             val firestoreManager = FirestoreManager()
             val storageManager = FirebaseStorageManager()
 
+            val cropRepo = com.example.agriscout.data.repository.CropRepository(db.cropDao())
+
             // Step 1: Upload unsynced farms to Firestore
             farmRepo.getUnsyncedFarms().forEach { farm ->
                 val result = withTimeoutOrNull(15000) { firestoreManager.uploadFarm(farm) }
                 if (result?.isSuccess == true) farmRepo.markFarmAsSynced(farm.farmId)
+            }
+
+            // Step 1.5: Upload unsynced crops to Firestore
+            cropRepo.getUnsyncedCrops().forEach { crop ->
+                val result = withTimeoutOrNull(15000) { firestoreManager.uploadCrop(crop) }
+                if (result?.isSuccess == true) cropRepo.markCropAsSynced(crop.cropId)
             }
 
             // Step 2: Upload unsynced reports and images
@@ -42,7 +50,13 @@ class SyncWorker(context: Context, workerParams: WorkerParameters) : CoroutineWo
             }
 
             // Step 3: Download updates from cloud
-            firestoreManager.getAllFarms().getOrNull()?.forEach { farmRepo.insertFarm(it) }
+            firestoreManager.getAllFarms().getOrNull()?.forEach { farm -> 
+                farmRepo.insertFarm(farm)
+                // Also fetch crops for this farm
+                firestoreManager.getCropsForFarm(farm.farmId).getOrNull()?.forEach { crop ->
+                    cropRepo.insertCrop(crop)
+                }
+            }
             firestoreManager.getAllReports().getOrNull()?.forEach { reportRepo.insertReport(it) }
 
             ListenableWorker.Result.success()

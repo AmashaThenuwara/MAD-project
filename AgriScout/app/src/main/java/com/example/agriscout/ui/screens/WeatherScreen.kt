@@ -20,6 +20,8 @@ import com.google.accompanist.permissions.isGranted
 import com.google.accompanist.permissions.rememberPermissionState
 import com.google.android.gms.location.LocationServices
 import com.google.android.gms.location.Priority
+import com.example.agriscout.ui.components.AnimatedButton
+import com.example.agriscout.ui.components.ShinyCard
 
 @OptIn(ExperimentalPermissionsApi::class, ExperimentalMaterial3Api::class)
 @Composable
@@ -94,7 +96,7 @@ fun WeatherScreen(
                         Spacer(modifier = Modifier.height(8.dp))
                         Text(state.message, color = MaterialTheme.colorScheme.error, fontSize = 13.sp)
                         Spacer(modifier = Modifier.height(16.dp))
-                        Button(onClick = { fetchWeatherForCurrentLocation() }) {
+                        AnimatedButton(onClick = { fetchWeatherForCurrentLocation() }) {
                             Text("Retry")
                         }
                     }
@@ -157,8 +159,8 @@ fun WeatherScreen(
 // Reusable card for one weather stat
 @Composable
 fun WeatherDetailCard(label: String, value: String) {
-    Card(
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+    ShinyCard(
+        modifier = Modifier.padding(4.dp)
     ) {
         Column(
             modifier = Modifier.padding(16.dp),

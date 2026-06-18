@@ -109,9 +109,13 @@ fun AppNavigation() {
         composable(Screen.FarmList.route) {
             FarmListScreen(
                 viewModel = agriViewModel,
+                onNavigateBack = { navController.popBackStack() },
                 onNavigateToAddFarm = { navController.navigate(Screen.AddFarm.route) },
                 onNavigateToEditFarm = { farmId ->
                     navController.navigate(Screen.EditFarm.createRoute(farmId))
+                },
+                onNavigateToFarmDetails = { farmId ->
+                    navController.navigate(Screen.FarmDetails.createRoute(farmId))
                 },
                 onNavigateToReport = { farmId ->
                     navController.navigate(Screen.DiseaseReport.createRoute(farmId))
@@ -123,7 +127,31 @@ fun AppNavigation() {
         composable(Screen.AddFarm.route) {
             AddFarmScreen(
                 viewModel = agriViewModel,
-                onNavigateBack = { navController.popBackStack() }
+                onNavigateBack = { navController.popBackStack() },
+                onNavigateToFarmDetails = { farmId ->
+                    navController.navigate(Screen.FarmDetails.createRoute(farmId))
+                }
+            )
+        }
+
+        composable(
+            route = Screen.FarmDetails.route,
+            arguments = listOf(navArgument("farmId") { type = NavType.LongType })
+        ) { backStackEntry ->
+            val farmId = backStackEntry.arguments?.getLong("farmId") ?: 0L
+            FarmDetailsScreen(
+                farmId = farmId,
+                viewModel = agriViewModel,
+                onNavigateBack = { navController.popBackStack() },
+                onNavigateToCropDetail = { cropId ->
+                    navController.navigate(Screen.CropDetail.createRoute(cropId))
+                },
+                onNavigateToAddCrop = { fId ->
+                    navController.navigate(Screen.AddEditCrop.createRoute(fId))
+                },
+                onNavigateToEditFarm = { fId ->
+                    navController.navigate(Screen.EditFarm.createRoute(fId))
+                }
             )
         }
 
@@ -136,6 +164,50 @@ fun AppNavigation() {
                 farmId = farmId,
                 viewModel = agriViewModel,
                 onNavigateBack = { navController.popBackStack() }
+            )
+        }
+
+        composable(
+            route = Screen.CropDetail.route,
+            arguments = listOf(navArgument("cropId") { type = NavType.LongType })
+        ) { backStackEntry ->
+            val cropId = backStackEntry.arguments?.getLong("cropId") ?: 0L
+            CropDetailScreen(
+                cropId = cropId,
+                viewModel = agriViewModel,
+                onNavigateBack = { navController.popBackStack() },
+                onNavigateToEditCrop = { farmId, cId ->
+                    navController.navigate(Screen.AddEditCrop.createRoute(farmId, cId))
+                }
+            )
+        }
+
+        composable(
+            route = Screen.AddEditCrop.route,
+            arguments = listOf(
+                navArgument("farmId") { type = NavType.LongType },
+                navArgument("cropId") { 
+                    type = NavType.StringType
+                    nullable = true 
+                    defaultValue = null
+                }
+            )
+        ) { backStackEntry ->
+            val farmId = backStackEntry.arguments?.getLong("farmId") ?: 0L
+            val cropIdStr = backStackEntry.arguments?.getString("cropId")
+            val cropId = cropIdStr?.toLongOrNull()
+            
+            AddEditCropScreen(
+                farmId = farmId,
+                cropId = cropId,
+                viewModel = agriViewModel,
+                onNavigateBack = { navController.popBackStack() },
+                onNavigateToCropDetail = { savedCropId ->
+                    navController.navigate(Screen.CropDetail.createRoute(savedCropId)) {
+                        // Pop the add/edit screen so we don't go back to it
+                        popUpTo(Screen.AddEditCrop.route) { inclusive = true }
+                    }
+                }
             )
         }
 

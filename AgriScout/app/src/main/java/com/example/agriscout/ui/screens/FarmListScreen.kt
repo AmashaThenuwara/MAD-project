@@ -1,5 +1,6 @@
 package com.example.agriscout.ui.screens
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -14,24 +15,32 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.material.icons.filled.*
 import com.example.agriscout.data.local.entity.FarmEntity
 import com.example.agriscout.ui.viewmodel.AgriViewModel
+import com.example.agriscout.ui.components.ShinyCard
+import com.example.agriscout.ui.components.AnimatedButton
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun FarmListScreen(
     viewModel: AgriViewModel,
+    onNavigateBack: () -> Unit,
     onNavigateToAddFarm: () -> Unit,
     onNavigateToEditFarm: (Long) -> Unit,
+    onNavigateToFarmDetails: (Long) -> Unit,
     onNavigateToReport: (Long) -> Unit,
     onNavigateToWeather: () -> Unit
 ) {
-    // Collect active farms from database
     val farmsList by viewModel.farmsList.collectAsState()
     var farmToDelete by remember { mutableStateOf<FarmEntity?>(null) }
 
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Active Farms", fontWeight = FontWeight.Bold) },
+                title = { Text("Registered Farms", fontWeight = FontWeight.Bold) },
+                navigationIcon = {
+                    IconButton(onClick = onNavigateBack) {
+                        Icon(Icons.Default.ArrowBack, contentDescription = "Back")
+                    }
+                },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
                 actions = {
                     IconButton(onClick = onNavigateToWeather) {
@@ -58,6 +67,7 @@ fun FarmListScreen(
                 items(farmsList) { farm ->
                     FarmCard(
                         farm = farm,
+                        onClick = { onNavigateToFarmDetails(farm.farmId) },
                         onEditClick = { onNavigateToEditFarm(farm.farmId) },
                         onDeleteClick = { farmToDelete = farm },
                         onReportClick = { onNavigateToReport(farm.farmId) }
@@ -66,12 +76,11 @@ fun FarmListScreen(
             }
         }
 
-        // Deletion confirmation dialog
         farmToDelete?.let { farm ->
             AlertDialog(
                 onDismissRequest = { farmToDelete = null },
                 title = { Text("Delete Farm") },
-                text = { Text("Are you sure you want to delete '${farm.farmName}'?") },
+                text = { Text("Are you sure you want to delete '${farm.farmName}'? All associated crop data will remain in history.") },
                 confirmButton = {
                     TextButton(onClick = { viewModel.deleteFarm(farm); farmToDelete = null }, colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error)) {
                         Text("Delete")
@@ -88,11 +97,16 @@ fun FarmListScreen(
 @Composable
 fun FarmCard(
     farm: FarmEntity,
+    onClick: () -> Unit,
     onEditClick: () -> Unit,
     onDeleteClick: () -> Unit,
     onReportClick: () -> Unit
 ) {
-    Card(modifier = Modifier.fillMaxWidth(), elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)) {
+    ShinyCard(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onClick() }
+    ) {
         Column(modifier = Modifier.fillMaxWidth().padding(16.dp)) {
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                 Text(text = farm.farmName, fontSize = 20.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
@@ -107,8 +121,14 @@ fun FarmCard(
                 Spacer(modifier = Modifier.width(4.dp))
                 Text(text = farm.locationName, fontSize = 14.sp)
             }
-            Button(onClick = onReportClick, modifier = Modifier.align(Alignment.End)) {
-                Text("Log Disease Report")
+            Spacer(modifier = Modifier.height(8.dp))
+            AnimatedButton(
+                onClick = onReportClick,
+                modifier = Modifier.align(Alignment.End)
+            ) {
+                Icon(Icons.Default.Assignment, contentDescription = null, modifier = Modifier.size(16.dp))
+                Spacer(Modifier.width(8.dp))
+                Text("Disease Report")
             }
         }
     }

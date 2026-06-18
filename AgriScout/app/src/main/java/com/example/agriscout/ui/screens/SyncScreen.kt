@@ -21,6 +21,8 @@ import com.example.agriscout.data.sync.SyncWorker
 import com.example.agriscout.ui.viewmodel.AgriViewModel
 import kotlinx.coroutines.flow.collectLatest
 import java.util.UUID
+import com.example.agriscout.ui.components.AnimatedButton
+import com.example.agriscout.ui.components.ShinyCard
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -86,9 +88,8 @@ fun SyncScreen(
         ) {
             Text("Connection Status", fontSize = 20.sp, fontWeight = FontWeight.Bold)
 
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+            ShinyCard(
+                modifier = Modifier.fillMaxWidth()
             ) {
                 Column(
                     modifier = Modifier.padding(16.dp),
@@ -111,7 +112,7 @@ fun SyncScreen(
 
             Spacer(modifier = Modifier.weight(1f))
 
-            Button(
+            AnimatedButton(
                 onClick = {
                     isSyncing = true
                     val workRequest = OneTimeWorkRequestBuilder<SyncWorker>().build()
@@ -119,8 +120,7 @@ fun SyncScreen(
                     WorkManager.getInstance(context).enqueue(workRequest)
                 },
                 modifier = Modifier.fillMaxWidth().height(56.dp),
-                enabled = !isSyncing && hasUnsynced,
-                shape = RoundedCornerShape(12.dp)
+                enabled = !isSyncing && hasUnsynced
             ) {
                 Text(if (!hasUnsynced) "Everything Synced" else "Sync with Firebase", fontWeight = FontWeight.Bold)
             }
