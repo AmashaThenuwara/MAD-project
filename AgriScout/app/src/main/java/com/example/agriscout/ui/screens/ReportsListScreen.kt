@@ -140,7 +140,7 @@ fun ReportCard(report: DiseaseReportEntity) {
                 // Display disease image
                 if (report.imagePath.isNotEmpty()) {
                     AsyncImage(
-                        model = File(report.imagePath),
+                        model = if (report.imagePath.startsWith("http")) report.imagePath else File(report.imagePath),
                         contentDescription = "Disease Photo",
                         modifier = Modifier
                             .size(100.dp)

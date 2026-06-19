@@ -2,6 +2,7 @@ package com.example.agriscout.ui.screens
 
 import android.Manifest
 import android.content.Context
+import android.content.Intent
 import android.util.Log
 import android.view.ViewGroup
 import androidx.camera.core.*
@@ -12,6 +13,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.MyLocation
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -31,10 +33,12 @@ import com.example.agriscout.data.local.entity.FarmEntity
 import com.example.agriscout.ui.viewmodel.AgriViewModel
 import com.example.agriscout.util.PdfGenerator
 import com.example.agriscout.ui.components.AnimatedButton
+import com.example.agriscout.ui.components.ShinyCard
 import com.google.accompanist.permissions.ExperimentalPermissionsApi
 import com.google.accompanist.permissions.isGranted
 import com.google.accompanist.permissions.rememberMultiplePermissionsState
 import com.google.android.gms.location.LocationServices
+import com.google.android.gms.location.Priority
 import com.google.common.util.concurrent.ListenableFuture
 import java.io.File
 import java.text.SimpleDateFormat
@@ -83,14 +87,15 @@ fun DiseaseReportScreen(
     var imagePath by remember { mutableStateOf("") }
     var latitude by remember { mutableStateOf(0.0) }
     var longitude by remember { mutableStateOf(0.0) }
-    var locationText by remember { mutableStateOf("Not captured yet") }
+    var isLocating by remember { mutableStateOf(false) }
 
     var imageCaptureUseCase by remember { mutableStateOf<ImageCapture?>(null) }
 
     val permissionsState = rememberMultiplePermissionsState(
         permissions = listOf(
             Manifest.permission.CAMERA,
-            Manifest.permission.ACCESS_FINE_LOCATION
+            Manifest.permission.ACCESS_FINE_LOCATION,
+            Manifest.permission.ACCESS_COARSE_LOCATION
         )
     )
 
@@ -122,31 +127,42 @@ fun DiseaseReportScreen(
                 .verticalScroll(rememberScrollState())
         ) {
             // 1. Crop Selection
-            ExposedDropdownMenuBox(
-                expanded = cropExpanded,
-                onExpandedChange = { if (selectedFarm != null) cropExpanded = !cropExpanded },
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp)
-            ) {
-                OutlinedTextField(
-                    value = selectedCrop?.commonName ?: "Select Crop",
-                    onValueChange = {},
-                    readOnly = true,
-                    label = { Text("Select Crop") },
-                    enabled = selectedFarm != null,
-                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = cropExpanded) },
-                    modifier = Modifier.menuAnchor().fillMaxWidth()
-                )
-                ExposedDropdownMenu(expanded = cropExpanded, onDismissRequest = { cropExpanded = false }) {
-                    cropsForSelectedFarm.forEach { crop ->
-                        DropdownMenuItem(
-                            text = { Text(crop.commonName) },
-                            onClick = {
-                                selectedCrop = crop
-                                cropExpanded = false
-                            }
-                        )
+            if (imagePath.isEmpty()) {
+                ExposedDropdownMenuBox(
+                    expanded = cropExpanded,
+                    onExpandedChange = { if (selectedFarm != null) cropExpanded = !cropExpanded },
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp)
+                ) {
+                    OutlinedTextField(
+                        value = selectedCrop?.commonName ?: "Select Crop",
+                        onValueChange = {},
+                        readOnly = true,
+                        label = { Text("Select Crop") },
+                        enabled = selectedFarm != null,
+                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = cropExpanded) },
+                        modifier = Modifier.menuAnchor().fillMaxWidth()
+                    )
+                    ExposedDropdownMenu(expanded = cropExpanded, onDismissRequest = { cropExpanded = false }) {
+                        cropsForSelectedFarm.forEach { crop ->
+                            DropdownMenuItem(
+                                text = { Text(crop.commonName) },
+                                onClick = {
+                                    selectedCrop = crop
+                                    cropExpanded = false
+                                }
+                            )
+                        }
                     }
                 }
+            } else {
+                // Display simple text when image is captured to save space
+                Text(
+                    text = "Reporting for: ${selectedCrop?.commonName ?: ""}",
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+                )
             }
 
             // Rest of UI (Camera, Inputs) - Only enabled if crop selected
@@ -161,7 +177,7 @@ fun DiseaseReportScreen(
                             )
                         } else {
                             AsyncImage(
-                                model = File(imagePath),
+                                model = if (imagePath.startsWith("http")) imagePath else File(imagePath),
                                 contentDescription = "Captured Photo",
                                 modifier = Modifier.fillMaxSize(),
                                 contentScale = ContentScale.Crop
@@ -192,16 +208,44 @@ fun DiseaseReportScreen(
                         modifier = Modifier.fillMaxWidth()
                     ) { Text(if (imagePath.isEmpty()) "Capture Photo" else "Retake") }
 
-                    AnimatedButton(
-                        onClick = {
-                            getLocation(context) { lat, lon ->
-                                latitude = lat
-                                longitude = lon
-                                locationText = "Lat: $lat, Lon: $lon"
-                            }
-                        },
+                    // GPS Card Layout matching Farm Register Page
+                    ShinyCard(
                         modifier = Modifier.fillMaxWidth()
-                    ) { Text(if (latitude == 0.0) "Capture Location" else "Location: $locationText") }
+                    ) {
+                        Column(modifier = Modifier.padding(16.dp)) {
+                            Text("GPS Coordinates", fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Column {
+                                    Text("Lat: ${if (latitude != 0.0) "%.6f".format(latitude) else "Not set"}", fontSize = 13.sp)
+                                    Text("Lon: ${if (longitude != 0.0) "%.6f".format(longitude) else "Not set"}", fontSize = 13.sp)
+                                }
+                                AnimatedButton(
+                                    onClick = {
+                                        isLocating = true
+                                        getLocation(context) { lat, lon ->
+                                            latitude = lat
+                                            longitude = lon
+                                            isLocating = false
+                                        }
+                                    },
+                                    enabled = !isLocating
+                                ) {
+                                    if (isLocating) {
+                                        CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp, color = MaterialTheme.colorScheme.onPrimary)
+                                    } else {
+                                        Icon(Icons.Default.MyLocation, contentDescription = null, modifier = Modifier.size(18.dp))
+                                        Spacer(Modifier.width(8.dp))
+                                        Text("Capture Location")
+                                    }
+                                }
+                            }
+                        }
+                    }
 
                     AnimatedButton(
                         onClick = {
@@ -218,14 +262,26 @@ fun DiseaseReportScreen(
                                 )
 
                                 // Generate PDF
-                                val path = PdfGenerator.createDiseaseReport(
+                                val uri = PdfGenerator.createDiseaseReport(
                                     context,
-                                    selectedFarm!!.farmName,
-                                    selectedCrop!!.commonName,
-                                    diseaseName,
-                                    notes
+                                    farmName = selectedFarm!!.farmName,
+                                    farmerName = selectedFarm!!.farmerName,
+                                    locationName = selectedFarm!!.locationName,
+                                    cropName = selectedCrop!!.commonName,
+                                    diseaseName = diseaseName,
+                                    notes = notes,
+                                    imagePath = imagePath,
+                                    latitude = latitude,
+                                    longitude = longitude
                                 )
-                                Log.d("PDF", "Saved to $path")
+                                if (uri != null) {
+                                    val intent = Intent(Intent.ACTION_SEND).apply {
+                                        type = "application/pdf"
+                                        putExtra(Intent.EXTRA_STREAM, uri)
+                                        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                                    }
+                                    context.startActivity(Intent.createChooser(intent, "Share Disease Report PDF"))
+                                }
 
                                 onNavigateBack()
                             }
@@ -311,12 +367,29 @@ fun capturePhoto(context: Context, imageCapture: ImageCapture?, onImageSaved: (S
 fun getLocation(context: Context, onLocationCaptured: (Double, Double) -> Unit) {
     val fusedLocationClient = LocationServices.getFusedLocationProviderClient(context)
     try {
-        fusedLocationClient.lastLocation.addOnSuccessListener { location ->
+        fusedLocationClient.getCurrentLocation(Priority.PRIORITY_HIGH_ACCURACY, null).addOnSuccessListener { location ->
             if (location != null) {
                 onLocationCaptured(location.latitude, location.longitude)
+            } else {
+                fusedLocationClient.lastLocation.addOnSuccessListener { lastLoc ->
+                    if (lastLoc != null) {
+                        onLocationCaptured(lastLoc.latitude, lastLoc.longitude)
+                    } else {
+                        android.widget.Toast.makeText(context, "Could not capture location. Ensure GPS is enabled.", android.widget.Toast.LENGTH_SHORT).show()
+                        onLocationCaptured(0.0, 0.0) // Reset to stop loading spinner
+                    }
+                }.addOnFailureListener {
+                    android.widget.Toast.makeText(context, "Failed to get location: ${it.message}", android.widget.Toast.LENGTH_SHORT).show()
+                    onLocationCaptured(0.0, 0.0)
+                }
             }
+        }.addOnFailureListener {
+            android.widget.Toast.makeText(context, "Failed to capture current location: ${it.message}", android.widget.Toast.LENGTH_SHORT).show()
+            onLocationCaptured(0.0, 0.0)
         }
     } catch (e: SecurityException) {
         Log.e("Location", "Permission not granted")
+        android.widget.Toast.makeText(context, "Location permission not granted", android.widget.Toast.LENGTH_SHORT).show()
+        onLocationCaptured(0.0, 0.0)
     }
 }

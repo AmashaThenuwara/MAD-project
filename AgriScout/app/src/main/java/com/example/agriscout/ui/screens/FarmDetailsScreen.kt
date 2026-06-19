@@ -1,5 +1,6 @@
 package com.example.agriscout.ui.screens
 
+import android.content.Intent
 import android.widget.Toast
 import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.background
@@ -15,6 +16,7 @@ import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.PictureAsPdf
+import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
@@ -80,24 +82,38 @@ fun FarmDetailsScreen(
                             modifier = Modifier.background(MaterialTheme.colorScheme.surface)
                         ) {
                             DropdownMenuItem(
-                                text = { Text("Export PDF") },
+                                text = { Text("Export Detailed PDF") },
                                 onClick = {
                                     expandedMenu = false
                                     farm?.let { f ->
                                         val path = PdfGenerator.createFarmReport(context, f, crops)
-                                        Toast.makeText(context, "PDF Saved: $path", Toast.LENGTH_LONG).show()
+                                        val uri = androidx.core.content.FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", java.io.File(path))
+                                        val intent = Intent(Intent.ACTION_SEND).apply {
+                                            type = "application/pdf"
+                                            putExtra(Intent.EXTRA_STREAM, uri)
+                                            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                                        }
+                                        context.startActivity(Intent.createChooser(intent, "Share PDF Report"))
                                     }
-                                }
+                                },
+                                leadingIcon = { Icon(Icons.Default.PictureAsPdf, contentDescription = null) }
                             )
                             DropdownMenuItem(
-                                text = { Text("Export CSV") },
+                                text = { Text("Export Detailed CSV") },
                                 onClick = {
                                     expandedMenu = false
                                     farm?.let { f ->
                                         val path = CsvGenerator.createFarmCsvReport(context, f, crops)
-                                        Toast.makeText(context, "CSV Saved: $path", Toast.LENGTH_LONG).show()
+                                        val uri = androidx.core.content.FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", java.io.File(path))
+                                        val intent = Intent(Intent.ACTION_SEND).apply {
+                                            type = "text/csv"
+                                            putExtra(Intent.EXTRA_STREAM, uri)
+                                            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                                        }
+                                        context.startActivity(Intent.createChooser(intent, "Share CSV Report"))
                                     }
-                                }
+                                },
+                                leadingIcon = { Icon(Icons.Default.Share, contentDescription = null) }
                             )
                         }
                     }

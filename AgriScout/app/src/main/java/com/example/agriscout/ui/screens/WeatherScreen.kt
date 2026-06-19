@@ -17,7 +17,7 @@ import com.example.agriscout.data.repository.WeatherResult
 import com.example.agriscout.ui.viewmodel.AgriViewModel
 import com.google.accompanist.permissions.ExperimentalPermissionsApi
 import com.google.accompanist.permissions.isGranted
-import com.google.accompanist.permissions.rememberPermissionState
+import com.google.accompanist.permissions.rememberMultiplePermissionsState
 import com.google.android.gms.location.LocationServices
 import com.google.android.gms.location.Priority
 import com.example.agriscout.ui.components.AnimatedButton
@@ -30,15 +30,21 @@ fun WeatherScreen(
     onNavigateBack: () -> Unit
 ) {
     val context = LocalContext.current
-    val locationPermission = rememberPermissionState(Manifest.permission.ACCESS_FINE_LOCATION)
+    val locationPermissions = rememberMultiplePermissionsState(
+        listOf(
+            Manifest.permission.ACCESS_FINE_LOCATION,
+            Manifest.permission.ACCESS_COARSE_LOCATION
+        )
+    )
+    val isLocationGranted = locationPermissions.permissions.any { it.status.isGranted }
 
     // Collect weather state from ViewModel
     val weatherState by viewModel.weatherState.collectAsState()
 
     // Fetch weather using device GPS
     fun fetchWeatherForCurrentLocation() {
-        if (!locationPermission.status.isGranted) {
-            locationPermission.launchPermissionRequest()
+        if (!isLocationGranted) {
+            locationPermissions.launchMultiplePermissionRequest()
             return
         }
         val fusedLocationClient = LocationServices.getFusedLocationProviderClient(context)
@@ -54,9 +60,13 @@ fun WeatherScreen(
         }
     }
 
-    // Auto-fetch when screen opens
-    LaunchedEffect(Unit) {
-        fetchWeatherForCurrentLocation()
+    // Auto-fetch when screen opens or permissions are granted
+    LaunchedEffect(isLocationGranted) {
+        if (isLocationGranted) {
+            fetchWeatherForCurrentLocation()
+        } else {
+            locationPermissions.launchMultiplePermissionRequest()
+        }
     }
 
     Scaffold(

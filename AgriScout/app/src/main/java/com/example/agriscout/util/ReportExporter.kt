@@ -71,30 +71,38 @@ object ReportExporter {
         val cropMap = crops.associateBy { it.cropId }
 
         val pdfDocument = PdfDocument()
-        val titlePaint = Paint().apply {
-            textSize = 20f
-            typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
+        val headerPaint = Paint().apply {
+            color = Color.parseColor("#2E7D32")
         }
-        val subTitlePaint = Paint().apply {
-            textSize = 14f
+        val headerTextPaint = Paint().apply {
             typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
+            textSize = 28f
+            color = Color.WHITE
+        }
+        val sectionTitlePaint = Paint().apply {
+            typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
+            textSize = 20f
+            color = Color.parseColor("#2E7D32")
         }
         val textPaint = Paint().apply {
-            textSize = 12f
-        }
-        val labelPaint = Paint().apply {
-            textSize = 12f
-            typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
+            textSize = 14f
+            color = Color.DKGRAY
         }
 
         // Create a page
         val pageInfo = PdfDocument.PageInfo.Builder(595, 842, 1).create() // A4 size
         var page = pdfDocument.startPage(pageInfo)
         var canvas = page.canvas
-        var y = 50f
 
-        canvas.drawText("AgriScout - Detailed Disease Report", 40f, y, titlePaint)
-        y += 40f
+        // Draw main header background
+        canvas.drawRect(0f, 0f, 595f, 100f, headerPaint)
+        
+        // Draw header text
+        canvas.drawText("All Disease Reports", 50f, 65f, headerTextPaint)
+
+        var y = 140f
+        val margin = 50f
+        val lineHeight = 30f
 
         val dateFormat = SimpleDateFormat("dd MMM yyyy, HH:mm", Locale.getDefault())
 
@@ -107,45 +115,43 @@ object ReportExporter {
                 pdfDocument.finishPage(page)
                 page = pdfDocument.startPage(pageInfo)
                 canvas = page.canvas
-                y = 50f
+                // New page header
+                canvas.drawRect(0f, 0f, 595f, 60f, headerPaint)
+                canvas.drawText("All Disease Reports (Cont.)", 50f, 40f, headerTextPaint.apply { textSize = 20f })
+                y = 100f
             }
 
             val entryStartY = y
 
             // Disease Heading
-            canvas.drawText("${index + 1}. Disease: ${report.diseaseName}", 40f, y, subTitlePaint)
-            y += 20f
+            canvas.drawText("${index + 1}. ${report.diseaseName}", margin, y, sectionTitlePaint)
+            canvas.drawLine(margin, y + 10f, 545f, y + 10f, headerPaint.apply { strokeWidth = 2f })
+            y += 40f
 
-            // Farm Details Section
-            canvas.drawText("Farm Details:", 60f, y, labelPaint)
-            y += 18f
-            canvas.drawText("• Name: ${farm?.farmName ?: "N/A"}", 70f, y, textPaint)
-            y += 18f
-            canvas.drawText("• Farmer: ${farm?.farmerName ?: "N/A"}", 70f, y, textPaint)
-            y += 18f
-            canvas.drawText("• Crop: ${crop?.commonName ?: "N/A"}", 70f, y, textPaint)
-            y += 22f
-
-            // Report Details Section
-            canvas.drawText("Report Details:", 60f, y, labelPaint)
-            y += 18f
-            canvas.drawText("• Date: ${dateFormat.format(Date(report.date))}", 70f, y, textPaint)
-            y += 18f
-            canvas.drawText("• GPS: ${report.latitude}, ${report.longitude}", 70f, y, textPaint)
-            y += 18f
+            // Details
+            canvas.drawText("Farm: ${farm?.farmName ?: "N/A"}", margin, y, textPaint)
+            y += lineHeight
+            canvas.drawText("Farmer: ${farm?.farmerName ?: "N/A"}", margin, y, textPaint)
+            y += lineHeight
+            canvas.drawText("Crop: ${crop?.commonName ?: "N/A"}", margin, y, textPaint)
+            y += lineHeight
+            canvas.drawText("Date: ${dateFormat.format(Date(report.date))}", margin, y, textPaint)
+            y += lineHeight
+            canvas.drawText("GPS: ${report.latitude}, ${report.longitude}", margin, y, textPaint)
+            y += lineHeight
             
-            // Handle long notes with a simple wrap
-            val notes = "• Notes: ${report.notes}"
+            val notes = "Notes: ${report.notes}"
             if (notes.length > 60) {
-                canvas.drawText(notes.substring(0, 60), 70f, y, textPaint)
-                y += 15f
-                canvas.drawText(notes.substring(60).take(60), 70f, y, textPaint)
+                canvas.drawText(notes.substring(0, 60), margin, y, textPaint)
+                y += lineHeight
+                canvas.drawText(notes.substring(60).take(60), margin, y, textPaint)
             } else {
-                canvas.drawText(notes, 70f, y, textPaint)
+                canvas.drawText(notes, margin, y, textPaint)
             }
+            y += 40f // padding below entry
             
             // Draw Disease Image if it exists
-            if (report.imagePath.isNotEmpty()) {
+            if (report.imagePath.isNotEmpty() && !report.imagePath.startsWith("http")) {
                 val imgFile = File(report.imagePath)
                 if (imgFile.exists()) {
                     try {

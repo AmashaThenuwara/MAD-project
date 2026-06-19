@@ -20,6 +20,8 @@ class DiseaseReportRepository(private val reportDao: DiseaseReportDao) {
 
     suspend fun deleteReport(report: DiseaseReportEntity) = reportDao.deleteReport(report)
 
+    suspend fun getReportById(reportId: Long): DiseaseReportEntity? = reportDao.getReportById(reportId)
+
     suspend fun getUnsyncedReports(): List<DiseaseReportEntity> = reportDao.getUnsyncedReports()
 
     suspend fun markReportAsSynced(reportId: Long) = reportDao.markReportAsSynced(reportId)

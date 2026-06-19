@@ -60,11 +60,25 @@ class SyncWorker(context: Context, workerParams: WorkerParameters) : CoroutineWo
             firestoreManager.getAllFarms().getOrNull()?.forEach { farm -> 
                 farmRepo.insertFarm(farm)
                 // Also fetch crops for this farm
-                firestoreManager.getCropsForFarm(farm.farmId).getOrNull()?.forEach { crop ->
-                    cropRepo.insertCrop(crop)
+                firestoreManager.getCropsForFarm(farm.farmId).getOrNull()?.forEach { cloudCrop ->
+                    val localCrop = cropRepo.getCropById(cloudCrop.cropId)
+                    val finalImagePath = if (localCrop != null && localCrop.imagePath.isNotBlank() && !localCrop.imagePath.startsWith("http")) {
+                        localCrop.imagePath
+                    } else {
+                        cloudCrop.imagePath
+                    }
+                    cropRepo.insertCrop(cloudCrop.copy(imagePath = finalImagePath))
                 }
             }
-            firestoreManager.getAllReports().getOrNull()?.forEach { reportRepo.insertReport(it) }
+            firestoreManager.getAllReports().getOrNull()?.forEach { cloudReport -> 
+                val localReport = reportRepo.getReportById(cloudReport.reportId)
+                val finalImagePath = if (localReport != null && localReport.imagePath.isNotBlank() && !localReport.imagePath.startsWith("http")) {
+                    localReport.imagePath
+                } else {
+                    cloudReport.imagePath
+                }
+                reportRepo.insertReport(cloudReport.copy(imagePath = finalImagePath))
+            }
 
             ListenableWorker.Result.success()
         } catch (e: Exception) {

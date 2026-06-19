@@ -16,9 +16,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
-import androidx.work.*
 import com.example.agriscout.data.firebase.FirebaseAuthManager
-import com.example.agriscout.data.sync.SyncWorker
 import com.example.agriscout.ui.navigation.Screen
 import com.example.agriscout.ui.screens.*
 import com.example.agriscout.ui.theme.AgriScoutTheme
@@ -29,7 +27,7 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         // Initialize background data synchronization
-        scheduleSyncWorker()
+        // Removed to only sync manually when the 'Everything Synced' button is clicked.
 
         setContent {
             AgriScoutTheme {
@@ -43,22 +41,6 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    // Configure periodic sync worker with network constraints
-    private fun scheduleSyncWorker() {
-        val constraints = Constraints.Builder()
-            .setRequiredNetworkType(NetworkType.CONNECTED)
-            .build()
-
-        val syncRequest = PeriodicWorkRequestBuilder<SyncWorker>(15, TimeUnit.MINUTES)
-            .setConstraints(constraints)
-            .build()
-
-        WorkManager.getInstance(this).enqueueUniquePeriodicWork(
-            "agriscout_sync",
-            ExistingPeriodicWorkPolicy.KEEP,
-            syncRequest
-        )
-    }
 }
 
 @Composable

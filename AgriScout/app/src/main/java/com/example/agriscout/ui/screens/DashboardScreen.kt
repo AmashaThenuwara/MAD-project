@@ -153,7 +153,7 @@ fun DashboardScreen(
                 ) {
                     StatBox("Farms", totalFarms.toString(), Modifier.weight(1f))
                     StatBox("Reports", totalReports.toString(), Modifier.weight(1f))
-                    StatBox("Pending", pendingSync.toString(), Modifier.weight(1f).clickable { onNavigateToSync() })
+                    StatBox("Pending", pendingSync.toString(), Modifier.weight(1f))
                 }
             }
 

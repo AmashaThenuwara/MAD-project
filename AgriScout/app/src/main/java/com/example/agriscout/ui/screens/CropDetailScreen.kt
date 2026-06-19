@@ -90,7 +90,7 @@ fun CropDetailScreen(
                 Box(modifier = Modifier.fillMaxWidth().padding(16.dp)) {
                     if (crop!!.imagePath.isNotEmpty()) {
                         AsyncImage(
-                            model = File(crop!!.imagePath),
+                            model = if (crop!!.imagePath.startsWith("http")) crop!!.imagePath else File(crop!!.imagePath),
                             contentDescription = "Crop Image",
                             modifier = Modifier
                                 .fillMaxWidth()

@@ -24,6 +24,9 @@ interface DiseaseReportDao {
     @Delete
     suspend fun deleteReport(report: DiseaseReportEntity)
 
+    @Query("SELECT * FROM disease_reports WHERE reportId = :reportId")
+    suspend fun getReportById(reportId: Long): DiseaseReportEntity?
+
     @Query("UPDATE disease_reports SET syncStatus = 'SYNCED' WHERE reportId = :reportId")
     suspend fun markReportAsSynced(reportId: Long)
 

@@ -98,7 +98,7 @@ fun DetailedCropCard(crop: CropEntity) {
             // Image Section
             if (crop.imagePath.isNotEmpty()) {
                 AsyncImage(
-                    model = File(crop.imagePath),
+                    model = if (crop.imagePath.startsWith("http")) crop.imagePath else File(crop.imagePath),
                     contentDescription = "Crop Image",
                     modifier = Modifier
                         .fillMaxWidth()

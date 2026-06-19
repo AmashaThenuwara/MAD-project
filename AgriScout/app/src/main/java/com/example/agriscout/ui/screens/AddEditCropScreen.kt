@@ -151,7 +151,7 @@ fun AddEditCropScreen(
                                 )
                             } else {
                                 AsyncImage(
-                                    model = File(imagePath),
+                                    model = if (imagePath.startsWith("http")) imagePath else File(imagePath),
                                     contentDescription = "Crop Image",
                                     modifier = Modifier.fillMaxSize(),
                                     contentScale = ContentScale.Crop
