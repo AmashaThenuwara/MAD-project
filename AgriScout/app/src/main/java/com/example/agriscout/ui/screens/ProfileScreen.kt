@@ -60,7 +60,11 @@ fun ProfileScreen(
                 }
             }
 
-            Text(text = user?.displayName.takeIf { !it.isNullOrBlank() } ?: "Unknown Officer", fontSize = 22.sp, fontWeight = FontWeight.Bold)
+            val displayTitle = user?.displayName.takeIf { !it.isNullOrBlank() }
+                ?: user?.email?.substringBefore("@")?.replace(".", " ")?.split(" ")?.joinToString(" ") { it.replaceFirstChar { char -> char.uppercase() } }
+                ?: "Unknown Officer"
+            
+            Text(text = displayTitle, fontSize = 22.sp, fontWeight = FontWeight.Bold)
             Text(text = user?.email ?: "No Email", fontSize = 16.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
             Text(text = "UID: ${user?.uid?.take(12)}...", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
 
